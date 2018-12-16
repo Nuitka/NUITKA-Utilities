@@ -2,7 +2,7 @@
 A collection of scripts involving Python compilations with NUITKA
 
 ## make-exe.py (currently tested on Windows)
-This script shows a GUI (using tkinter / PySimpleGUI) to ask for a Python script name and then invokes NUITKA to generate a standalone EXE file from it.
+This script shows a GUI (using tkinter / [PySimpleGUI](https://github.com/MikeTheWatchGuy/PySimpleGUI)) to ask for a Python script name and then invokes NUITKA to generate a standalone EXE file from it.
 
 ### Features
 * sets a number of NUITKA default parameters (e.g. "remove output")
