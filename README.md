@@ -21,7 +21,7 @@ After a successful check, only new files will be included in that folder. Apart 
 In this way, a folder with compiled standalone Python programs can be built up over time.
 
 ### Note 2
-If your program uses tkinter, you must request TK/TCL file inclusion. This is however only supported if you **also specify an output folder** for the binaries. If you do want to **use the script's folder**, you must specify it. The folder will afterwards contain two new sub-folders named `bin` and `lib` respectively. You must include both of these sub-folders if you later want to distribute your binaries.
+If your program uses tkinter, you must request TK/TCL file inclusion. This is however only supported if you **also specify an output folder** for the binaries. It is possible to **use the script's folder** for this, but you must specify it. The folder will afterwards contain two new sub-folders named `bin` and `lib` respectively. You must include both of these sub-folders if you later want to distribute your binaries.
 
 ## upx-packer.py
 NUITKA binary output folders tend to have sizes in excess of 60 MB. While this is largely irrelevant if you continue to use the compiles on the original computer, it may become an issue when distributing stuff.
