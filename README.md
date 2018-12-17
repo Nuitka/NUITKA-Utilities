@@ -83,3 +83,12 @@ The binaries which the script tries to de-compress are more than during compress
 This can be safely ignored, because UPX will ignore all files that were not previously compressed by it.
 
 De-compression runtime is very short anyway.
+
+## merge-exe.py
+Yet another script to merge two folders with binaries. Should be used when `make.exe.py` refuses to merge compilation output because of "incompatible" files.
+
+This script can resolve all "incompatibility" situations via a "force mode" merge. In this case source files overwrite same-named files in the target.
+
+If you want to exercise greater care, you can first try to either compress or de-compress both, source and target folders and then try the merge again.
+
+You will finally have a merged target folder, which you can compress or de-compress as required.
