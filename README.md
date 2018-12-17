@@ -55,6 +55,7 @@ savings: 61.751 (56.94%)
 
 D:\Jorj\Desktop\test-folder>
 ```
+The self-extracting archive of the resulting **packed** `bin` folder (7zip) has a size of 34.8 MB.
 
 ## upx-unpacker.py
 Does the opposite of `upx-packer.py`.
@@ -74,6 +75,7 @@ growth: 61.751 (132.24%)
 
 D:\Jorj\Desktop\test-folder>
 ```
+The self-extracting archive of the **unpacked** `bin` folder has a size of 28.7 MB.
 
 ### Note
 The binaries which the script tries to de-compress are more than during compression, because a less restrictive selection is applied.
