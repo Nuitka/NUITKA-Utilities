@@ -8,6 +8,12 @@ if not py2:
 else:
     import PySimpleGUI27 as psg
 
+
+try:
+    rc = sp.call(("upx", "-q"))                # test presence of upx
+except:
+    raise SystemExit("upx not installed or missing in path definition")
+
 try:
     bin_dir = sys.argv[1]
 except:
@@ -41,7 +47,7 @@ for root, _, files in os.walk(bin_dir):
             if f.startswith("cldapi"):
                 continue
         # make the upx invocation commannd
-        cmd = 'UPX -d "%s"' % fname
+        cmd = ('upx', '-d', fname)
         t = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
         tasks.append(t)
         file_count += 1
@@ -51,8 +57,8 @@ print("Started %i de-compressions out of %i total files ..." % (file_count, len(
 for t in tasks:
     t.wait()
 
-t1 = time.time()
-print("Finished in %g seconds." % (t1-t0), flush=True)
+t1 = time.time() - t0
+print("Finished in {:3.3} seconds.".format(t1), flush=True)
 old_size = new_size = 0.0
 for f in file_sizes.keys():
     old_size += file_sizes[f]

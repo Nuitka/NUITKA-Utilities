@@ -8,10 +8,10 @@ if not py2:
 else:
     import PySimpleGUI27 as psg
 
-upx_executable = "." + os.sep + "upx"
-if not os.path.isfile(upx_executable) and not os.path.isfile(upx_executable + ".exe"):
-	print("Cannot find UPX in " + upx_executable)
-	exit(1)
+try:
+    rc = sp.call(("upx", "-q"))                # test presence of upx
+except:
+    raise SystemExit("upx not installed or missing in path definition")
 
 try:
     bin_dir = sys.argv[1]
@@ -51,8 +51,8 @@ for root, _, files in os.walk(bin_dir):
             if f.startswith("edp"):
                 continue
             
-        # make the upx invocation commannd
-        cmd = 'UPX -9 "%s"' % fname
+        # make the upx invocation command
+        cmd = ('upx', '-9', fname)
         t = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
         tasks.append(t)
         file_count += 1
@@ -62,8 +62,8 @@ print("Started %i compressions out of %i total files ..." % (file_count, len(fil
 for t in tasks:
     t.wait()
 
-t1 = time.time()
-print("Finished in %g seconds." % (t1-t0), flush=True)
+t1 = time.time() - t0
+print("Finished in {:3.3} seconds.".format(t1), flush=True)
 old_size = new_size = 0.0
 for f in file_sizes.keys():
     old_size += file_sizes[f]
@@ -72,5 +72,5 @@ old_size *= 1./1024/1024
 new_size *= 1./1024/1024
 diff_size = old_size - new_size
 diff_percent = diff_size / old_size
-text = "\nFolder Compression Results (MB)\nbefore: {:.5}\nafter: {:.5}\nsavings: {:.5} ({:.2%})"
+text = "\nFolder Compression Results (MB)\nbefore: {:.5}\nafter: {:.5}\nsavings: {:.5} ({:2.1%})"
 print(text.format(old_size, new_size, diff_size, diff_percent))
