@@ -16,9 +16,9 @@ This script shows a GUI (using tkinter / [PySimpleGUI](https://github.com/MikeTh
 ### Note 1
 If a central folder for the binaries is requested, this folder is either automatically created or extended with the new binary file(s). An existing folder will first be checked for compatibility (to prevent things like different Python versions or different versions of the same imported package).
 
-After a successful check, only new files will be included in that folder. Apart from initial setup, this will tend to be just the new or changed EXE file.
+After a successful check, only new files will be included in that folder. After creation, this will tend to be just the new or changed EXE file, and maybe a handful more.
 
-In this way, a folder with compiled standalone Python programs can be built up over time.
+In this way, you can build up a folder with your compiled standalone Python binaries over time.
 
 ### Note 2
 If your program uses tkinter, you must request TK/TCL file inclusion. This is however only supported if you **also specify an output folder** for the binaries. It is possible to **use the script's folder** for this, but you must specify it. The folder will afterwards contain two new sub-folders named `bin` and `lib` respectively. You must include both of these sub-folders if you later want to distribute your binaries.
