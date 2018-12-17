@@ -7,7 +7,7 @@ This script shows a GUI (using tkinter / [PySimpleGUI](https://github.com/MikeTh
 ### Features
 * sets a number of NUITKA default parameters (e.g. "remove output")
 * includes TK/TCL files upon request
-* include Qt plugin upon request
+* includes Qt plugin upon request
 * allows specification / suppression of a script console window. Automatically unsets for script extension `*.pyw`.
 * supports specification of an icon file
 * allows entering arbitrary additional NUITKA parameters
