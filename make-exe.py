@@ -25,9 +25,10 @@ layout = [
     [sg.Text("Icon File:", size=(10,1)),
      sg.InputText("", key="icon-file"),
      sg.FileBrowse(button_text="...")],
-    [sg.Checkbox("Use Console Window", default=True, key="use-console"),
-     sg.Checkbox("Include Tkinter Support", default=True, key="tk-support")],
-    [sg.Text("Any additional nuitka args:")],
+    [sg.Checkbox("Use Console", default=True, key="use-console"),
+     sg.Checkbox("Tk Support", default=False, key="tk-support"),
+     sg.Checkbox("Qt Support", default=False, key="qt-support"),],
+    [sg.Text("More Nuitka args:")],
     [sg.InputText("", key="add-args", size=(60,2))],
     [sg.Submit(), sg.Cancel()]
 ]
@@ -52,6 +53,7 @@ icon_file = val["icon-file"]
 if icon_file:
     if not os.path.exists(icon_file):
         raise SystemExit("Icon file '%s' does not exist!" % icon_file)
+    icon_file = os.path.abspath(icon_file)
 
 pscript = os.path.abspath(val["py-file"])
 if not os.path.exists(pscript):
@@ -59,6 +61,7 @@ if not os.path.exists(pscript):
 
 pscript_n, ext = os.path.splitext(pscript)
 pscript_dist = pscript_n + ".dist"
+pscript_build = pscript_n + ".build"
 
 compile_to = val["compile-to"]
 if compile_to:
@@ -68,7 +71,7 @@ if compile_to == pscript_dist:
     compile_to = None
 
 if not compile_to and val["tk-support"]:
-    raise SystemExit("Need 'Output Folder' for Tkinter support!")
+    raise SystemExit("Need an 'Output Folder' for Tkinter support!")
 
 if compile_to:
     compile_bin = os.path.join(compile_to, "bin")
@@ -78,11 +81,12 @@ if compile_to:
         os.mkdir(compile_to)
 
     if not os.path.exists(compile_bin):
+        print("Making 'bin' folder '%s'" % compile_bin)
         os.mkdir(compile_bin)
 
     if val["tk-support"]:
         if not os.path.exists(compile_lib):
-            print("Making Tkinter 'lib' folder ... ", end="", flush=True)
+            print("Making Tkinter 'lib' folder '%s' ... " % compile_lib, end="", flush=True)
             os.mkdir(compile_lib)
             tar_tk  = os.path.join(compile_lib, tk_lq)
             tar_tcl = os.path.join(compile_lib, tcl_lq)
@@ -96,10 +100,12 @@ if compile_to:
 
 if compile_to:
     pscript_dist = os.path.join(compile_to, os.path.basename(pscript_dist))
+    pscript_build = os.path.join(compile_to, os.path.basename(pscript_build))
 
 if os.path.exists(pscript_dist):
-    print("Removing old binaries ... ", end="", flush=True)
+    print("Removing old nuitka files ... ", end="", flush=True)
     shutil.rmtree(pscript_dist, ignore_errors=True)
+    shutil.rmtree(pscript_build, ignore_errors=True)
     print("done.")
 
 if not val["use-console"] or ext.lower() == ".pyw":
@@ -115,8 +121,12 @@ else:                             # create inside script folder
     dname = os.path.dirname(os.path.abspath(pscript))
     output = '--output-dir="%s"' % dname
 
-cmd = 'python -m nuitka --standalone --remove-output %s %s %s %s "%s"'
-cmd = cmd % (val["add-args"], output, win_no_con, win_icon, pscript)
+if val["qt-support"]:
+    qt = "--plugin-enable=qt-plugins"
+else:
+    qt = ""
+cmd = 'python -m nuitka --standalone --remove-output %s %s %s %s %s "%s"'
+cmd = cmd % (qt, val["add-args"], output, win_no_con, win_icon, pscript)
 
 while "  " in cmd:
     cmd = cmd.replace("  ", " ")
@@ -129,11 +139,11 @@ print(sep_line)
 
 subprocess.call(cmd)
 
-if not os.path.exists(pscript_dist):
-    print("Output folder '%s' does not exist." % pscript_dist)
-    raise SystemExit("Nuitka compile failed - exiting.")
-
 print(sep_line)
+
+if not os.path.exists(pscript_dist) or os.path.exists(pscript_build):
+    raise SystemExit("Nuitka compile failed! Exiting.")
+
 print("Nuitka compile successful.")
 print(sep_line)
 

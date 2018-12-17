@@ -1,5 +1,5 @@
 from __future__ import print_function
-import sys, os, subprocess, time
+import sys, os, subprocess as sp, time
 
 py2 = str is bytes                    # check if Python2
 # do some adjustments whether Python v2 or v3
@@ -25,10 +25,13 @@ file_count = 0
 file_sizes = {}
 t0 = time.time()
 for root, _, files in os.walk(bin_dir):
+    root = root.lower()
     for f in files:
-        f = f.lower()        # lower casing file name (Windows, stupid!)
+        f = f.lower()
         fname = os.path.join(root, f)
         file_sizes[fname] = os.stat(fname).st_size
+        if "qt-plugins" in root:
+            continue
         if not f.endswith((".exe", ".dll", "pyd")):   # we only handle these
             continue
         if f.endswith(".dll"):
@@ -40,9 +43,12 @@ for root, _, files in os.walk(bin_dir):
                 continue
             if f.startswith("cldapi"):
                 continue
+            if f.startswith("edp"):
+                continue
+            
         # make the upx invocation commannd
         cmd = 'UPX -9 "%s"' % fname
-        t = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        t = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
         tasks.append(t)
         file_count += 1
 

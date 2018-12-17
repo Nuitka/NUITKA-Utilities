@@ -20,23 +20,63 @@ After a successful check, only new files will be included in that folder. Apart 
 In this way, a folder with compiled standalone Python programs can be built up over time.
 
 ### Note 2
-If your program uses tkinter, you must request TK/TCL file inclusion. This is however only supported if you **also specify an output folder** for the binaries. If you do want to use the script's folder, you must specify it. The folder will afterwards contain two new sub-folders named `bin`, `lib` respectively. You must include both of these sub-folders if you later want to distribute your binaries.
+If your program uses tkinter, you must request TK/TCL file inclusion. This is however only supported if you **also specify an output folder** for the binaries. If you do want to **use the script's folder**, you must specify it. The folder will afterwards contain two new sub-folders named `bin` and `lib` respectively. You must include both of these sub-folders if you later want to distribute your binaries.
 
 ## upx-packer.py
-NUITKA binary output folders tend to have sizes in excess of 60 MB. While this is largely irrelevant if you continue to use compiles on the original computer, it may become an issue when distributing stuff.
+NUITKA binary output folders tend to have sizes in excess of 60 MB. While this is largely irrelevant if you continue to use the compiles on the original computer, it may become an issue when distributing stuff.
 
-If you want to reduce your binaries' distribution size, the obvious way is to create a self-extracing archive. The compression results for NUITKA binaries are generally very good and yield sizes of 25% or less of the original. As a matter of course, the original folder size is re-created on the target computer.
+If you want to reduce your binaries' **distribution** size, the obvious way is to create a self-extracing archive. The compression results for NUITKA binaries are generally very good and yield sizes of 25% or less of the original by using e.g. 7zip. As a matter of course, the original folder size is re-created on the target computer.
 
-This script in contrast aims to reduce the binary folder size by UPX-compression of all eligible binaries ("exe", "pyd" and most of the "dll" files).
+This script in contrast aims to reduce the current binary folder size by UPX-compressing of all eligible binaries ("exe", "pyd" and most of the "dll" files).
 
 ### Features
 * Takes a folder and recursively compresses each eligible file by applying UPX to it. The compressions are started as sub-tasks -- so overall execution time depends on the number of available CPUs on your machine.
-* It assumes that the UPX executable is contained on a path definition. Otherwise please change the script accordingly.
+* It assumes that the ``upx.exe`` executable is contained on a path definition. Otherwise please change the script accordingly.
 * Binaries are compressed *in-place*, so the folder will have changed after execution. It can no longer be used to incorporate new compilation outputs (via `make-exe.py`).
 * Depending on the folder content, the resulting size should be significantly less than 50% of the original -- expect something like a 60% reduction.
+* I have excluded a number of binaries, which I found make the EXE files no longer executable. Among these are several PyQt binaries. Add more where you run into problems -- and please submit issues in these cases.
 
 ### Note
-You can still distribute your binaries using self-extracting archives after execution of this script. The archive will also still be smaller than the original -- but not as small as without applying the script to it.
+You can still distribute your binaries using self-extracting archives after execution of this script. The archive will also still be smaller than the original -- but not as small as without applying the script.
 
+Sample output:
 
+```
+D:\Jorj\Desktop\test-folder>python upx-packer.py bin
+UPX Compression of binaries in folder 'D:\Jorj\Desktop\test-folder\bin'
+Started 101 compressions out of 127 total files ...
+Finished in 19.7697 seconds.
 
+Folder Compression Results (MB)
+before: 108.45
+after: 46.696
+savings: 61.751 (56.94%)
+
+D:\Jorj\Desktop\test-folder>
+```
+
+## upx-unpacker.py
+Does the opposite of `upx-packer.py`.
+
+Use it to undo a upx-compression -- for example right before including new binaries via using `make-exe.py`.
+
+```
+D:\Jorj\Desktop\rest-folder>python upx-unpacker.py bin
+UPX De-Compression of binaries in folder 'D:\Jorj\Desktop\test-folder\bin'
+Started 119 de-compressions out of 127 total files ...
+Finished in 1.71768 seconds.
+
+Folder De-Compression Results (MB)
+before: 46.696
+after: 108.45
+growth: 61.751 (132.24%)
+
+D:\Jorj\Desktop\test-folder>
+```
+
+### Note
+The binaries which the script tries to de-compress are more than during compression, because a less restrictive selection is applied.
+
+This can be safely ignored, because UPX will ignore all files that were not previously compressed by it.
+
+De-compression runtime is very short anyway.
