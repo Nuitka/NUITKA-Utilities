@@ -33,7 +33,7 @@ This script in contrast aims to reduce the current binary folder size by UPX-com
 ### Features
 * Takes a folder and recursively compresses each eligible file by applying UPX to it. The compressions are started as sub-tasks -- so overall execution time depends on the number of available CPUs on your machine.
 * It assumes that the ``upx.exe`` executable is contained on a path definition. Otherwise please change the script accordingly.
-* Binaries are compressed *in-place*, so the folder will have changed after execution. It can no longer be used to incorporate new compilation outputs -- i.e. via `make-exe.py`, but do have a look at ``upx-unpacker.py`` further down!.
+* Binaries are compressed *in-place*, so the folder will have changed after execution. It can no longer be used to incorporate new compilation outputs -- i.e. via `make-exe.py`.
 * Depending on the folder content, the resulting size should be significantly less than 50% of the original -- expect something like a 60% reduction.
 * I am filtering out a number of binaries, which I found make the EXE files no longer executable. Among these are several PyQt binaries. Add more where you run into problems -- and please submit issues in these cases.
 
@@ -60,7 +60,8 @@ The self-extracting archive of the resulting **packed** `bin` folder (7zip) has 
 ## upx-unpacker.py
 Does the opposite of `upx-packer.py`.
 
-Use it to undo a upx-compression -- for example right before including new binaries via using `make-exe.py`.
+Use it to undo a upx-compression -- for example if you encounter problems.
+Please note that - at least under Windows - decompression **does not restore** binary identity to the original. Therefore, merging new compiles into the folder will fail using `make-exe.py`.
 
 ```
 D:\Jorj\Desktop\rest-folder>python upx-unpacker.py bin
