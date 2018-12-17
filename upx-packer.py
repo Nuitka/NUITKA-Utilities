@@ -8,6 +8,11 @@ if not py2:
 else:
     import PySimpleGUI27 as psg
 
+upx_executable = "." + os.sep + "upx"
+if not os.path.isfile(upx_executable) and not os.path.isfile(upx_executable + ".exe"):
+	print("Cannot find UPX in " + upx_executable)
+	exit(1)
+
 try:
     bin_dir = sys.argv[1]
 except:
