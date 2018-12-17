@@ -33,7 +33,7 @@ This script in contrast aims to reduce the current binary folder size by UPX-com
 ### Features
 * Takes a folder and recursively compresses each eligible file by applying UPX to it. The compressions are started as sub-tasks -- so overall execution time depends on the number of available CPUs on your machine.
 * It assumes that the ``upx.exe`` executable is contained on a path definition. Otherwise please change the script accordingly.
-* Binaries are compressed *in-place*, so the folder will have changed after execution. It can no longer be used to incorporate new compilation outputs (via `make-exe.py`).
+* Binaries are compressed *in-place*, so the folder will have changed after execution. It can no longer be used to incorporate new compilation outputs -- i.e. via `make-exe.py`, but do have a look at ``upx-unpacker.py`` further down!.
 * Depending on the folder content, the resulting size should be significantly less than 50% of the original -- expect something like a 60% reduction.
 * I have excluded a number of binaries, which I found make the EXE files no longer executable. Among these are several PyQt binaries. Add more where you run into problems -- and please submit issues in these cases.
 
