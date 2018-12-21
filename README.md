@@ -1,15 +1,15 @@
 # NUITKA-Utilities
 A collection of scripts involving Python compilations with NUITKA
 
-## make-exe.py (currently tested on Windows)
+## exe-maker.py (currently tested on Windows)
 This script shows a GUI (using tkinter / [PySimpleGUI](https://github.com/MikeTheWatchGuy/PySimpleGUI)) to ask for a Python script name and then invokes NUITKA to generate a standalone EXE file from it.
 
 ### Features
 * sets a number of NUITKA default parameters (e.g. "remove output")
-* includes TK/TCL files upon request
-* includes Qt plugin upon request
-* allows specification / suppression of a script console window. Automatically unsets for script extension `*.pyw`.
-* supports specification of an icon file
+* optionally includes TK/TCL files
+* optionally includes Qt plugin
+* on-off switch for console window, sets to "off" for script extension `*.pyw`.
+* supports icon file
 * allows entering arbitrary additional NUITKA parameters
 * supports a **central folder** to automatically collect binaries from multiple compilations
 
@@ -33,7 +33,7 @@ This script in contrast aims to reduce the current binary folder size by UPX-com
 ### Features
 * Takes a folder and recursively compresses each eligible file by applying UPX to it. The compressions are started as sub-tasks -- so overall execution time depends on the number of available CPUs on your machine.
 * It assumes that the ``upx.exe`` executable is contained on a path definition. Otherwise please change the script accordingly.
-* Binaries are compressed *in-place*, so the folder will have changed after execution. It can no longer be used to incorporate new compilation outputs -- i.e. via `make-exe.py`.
+* Binaries are compressed *in-place*, so the folder will have changed after execution. It can no longer be used to incorporate new compilation outputs -- i.e. via `exe-maker.py`.
 * Depending on the folder content, the resulting size should be significantly less than 50% of the original -- expect something like a 60% reduction.
 * I am filtering out a number of binaries, which I found make the EXE files no longer executable. Among these are several PyQt binaries. Add more where you run into problems -- and please submit issues in these cases.
 
@@ -61,7 +61,7 @@ The self-extracting archive of the resulting **packed** `bin` folder (7zip) has 
 Does the opposite of `upx-packer.py`.
 
 Use it to undo a upx-compression -- for example if you encounter problems.
-Please note that - at least under Windows - decompression **does not restore** binary identity to the original. Therefore, merging new compiles into the folder will fail using `make-exe.py`.
+Please note that - at least under Windows - decompression **does not restore** binary identity to the original. Therefore, merging new compiles into the folder will fail using `exe-maker.py`.
 
 ```
 D:\Jorj\Desktop\rest-folder>python upx-unpacker.py bin
@@ -85,7 +85,7 @@ This can be safely ignored, because UPX will ignore all files that were not prev
 
 De-compression runtime is very short anyway.
 
-## merge-exe.py
+## exe-merger.py
 Yet another script to merge two folders with binaries. Should be used when `make.exe.py` refuses to merge compilation output because of "incompatible" files.
 
 This script can resolve all "incompatibility" situations via a "force mode" merge. In this case source files overwrite same-named files in the target.
@@ -93,3 +93,10 @@ This script can resolve all "incompatibility" situations via a "force mode" merg
 If you want to exercise greater care, you can first try to either compress or de-compress both, source and target folders and then try the merge again.
 
 You will finally have a merged target folder, which you can compress or de-compress as required.
+
+## link-maker.py
+Scan a folder for ``.exe`` files and create a ``.lnk`` link file for each of them. If the specified folder has no ``.exe`` files, its ``bin`` sub-folder will be checked.
+
+Output folder default is the user desktop.
+
+Script runs under Windows only and requires packages ``pythoncom`` and ``win32com`` to be installed.
