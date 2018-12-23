@@ -1,4 +1,4 @@
-import sys, os, subprocess, shutil
+import sys, os, subprocess, shutil, time
 
 py2 = str is bytes
 
@@ -11,67 +11,94 @@ else:
     tcl_lq = "tcl8.6"
     import PySimpleGUI as sg
 
-sep_line = "".ljust(80, "-")
+sys_tcl = os.path.join(os.path.dirname(sys.executable), "tcl")
+tk  = os.path.join(sys_tcl, tk_lq)
+tcl = os.path.join(sys_tcl, tcl_lq)
+tkinter_available = os.path.exists(tk) and os.path.exists(tcl)
 
+sep_line = "".ljust(80, "-")
+message = sg.Text("", size=(60,1))
+frm_input = sg.InputText("", key="py-file", do_not_clear=False)
+frm_output = sg.InputText("", key="compile-to", do_not_clear=True)
+frm_icon = sg.InputText("", key="icon-file", do_not_clear=True)
 form = sg.FlexForm('Nuitka Standalone EXE Generation')
 
+compile_to = pscript = icon_file = ""
+
 layout = [
-    [sg.Text("Python Script:", size=(10,1)),
-     sg.InputText("", key="py-file"),
+    [sg.Text("Python Script:", size=(12,1)),
+     sg.InputText("", key="py-file", do_not_clear=True),
      sg.FileBrowse(button_text="...", file_types=(("Python Files","*.py*"),))],
-    [sg.Text("Output Folder:", size=(10,1)),
-     sg.InputText("", key="compile-to"),
+    [sg.Text("Output Folder:", size=(12,1)),
+     frm_output,
      sg.FolderBrowse(button_text="...")],
-    [sg.Text("Icon File:", size=(10,1)),
-     sg.InputText("", key="icon-file"),
+    [sg.Text("Icon File:", size=(12,1)),
+     frm_icon,
      sg.FileBrowse(button_text="...")],
     [sg.Checkbox("Use Console", default=True, key="use-console"),
      sg.Checkbox("Tk Support", default=False, key="tk-support"),
      sg.Checkbox("Qt Support", default=False, key="qt-support"),],
     [sg.Text("More Nuitka args:")],
     [sg.InputText("", key="add-args", size=(60,2))],
+    [message],
     [sg.Submit(), sg.Cancel()]
 ]
 
-btn, val = form.Layout(layout).Read()
+form.Layout(layout)
+while True:
+    frm_input.Update(pscript)
+    frm_output.Update(compile_to)
+    frm_icon.Update(icon_file)
+    btn, val = form.Read()
 
-if btn != "Submit":
-    raise SystemExit("Cancel requested.")
+    if btn == "Cancel":
+        break
+
+    pscript = os.path.abspath(val["py-file"])
+    if not os.path.exists(pscript):
+        message.Update("Python script '%s' does not exist!" % pscript)
+        pscript = ""
+        continue
+
+    icon_file = val["icon-file"]
+    if icon_file and not os.path.exists(icon_file):
+        message.Update("Icon file '%s' does not exist!" % icon_file)
+        icon_file = ""
+        continue
+
+    compile_to = val["compile-to"]
+    if compile_to and not os.path.exists(compile_to):
+        message.Update("Output foler '%s' does not exist." % compile_to)
+        compile_to = ""
+        continue
+
+    if val["tk-support"] and not tkinter_available:
+        message.Udate("Tkinter files are not available on this system!")
+        continue
+
+    if not compile_to and val["tk-support"]:
+        message.Update("Need an 'Output Folder' for Tkinter support!")
+        continue
+
+    break
+
 
 form.Close()
+if btn == "Cancel":
+    raise SystemExit()
 
-if val["tk-support"]:
-    sys_tcl = os.path.join(os.path.dirname(sys.executable), "tcl")
-    tk  = os.path.join(sys_tcl, tk_lq)
-    tcl = os.path.join(sys_tcl, tcl_lq)
-    if not os.path.exists(tk):
-        raise SystemExit("Unexpected: '%s' does not exist!" % tk)
-    if not os.path.exists(tcl):
-        raise SystemExit("Unexpected: '%s' does not exist!" % tcl)
-
-icon_file = val["icon-file"]
 if icon_file:
-    if not os.path.exists(icon_file):
-        raise SystemExit("Icon file '%s' does not exist!" % icon_file)
     icon_file = os.path.abspath(icon_file)
-
-pscript = os.path.abspath(val["py-file"])
-if not os.path.exists(pscript):
-    raise SystemExit("Python script '%s' does not exist!" % pscript)
 
 pscript_n, ext = os.path.splitext(pscript)
 pscript_dist = pscript_n + ".dist"
 pscript_build = pscript_n + ".build"
 
-compile_to = val["compile-to"]
 if compile_to:
     compile_to = os.path.abspath(compile_to)
 
 if compile_to == pscript_dist:
     compile_to = None
-
-if not compile_to and val["tk-support"]:
-    raise SystemExit("Need an 'Output Folder' for Tkinter support!")
 
 if compile_to:
     compile_bin = os.path.join(compile_to, "bin")
@@ -92,7 +119,7 @@ if compile_to:
             tar_tcl = os.path.join(compile_lib, tcl_lq)
             shutil.copytree(tk, tar_tk)
             shutil.copytree(tcl, tar_tcl)
-            # TODO: Definitely do not need the demos! What else?
+            # TODO: Definitely do not need the demos! Anything else?
             shutil.rmtree(os.path.join(tar_tk, "demos"), ignore_errors=True)
             print("done.")
 
@@ -108,12 +135,13 @@ if os.path.exists(pscript_dist):
     shutil.rmtree(pscript_build, ignore_errors=True)
     print("done.")
 
-if not val["use-console"] or ext.lower() == ".pyw":
-    win_no_con = "--windows-disable-console"
-else:
-    win_no_con = ""
+cmd = ["python", "-m", "nuitka", "--standalone", "--remove-output"]
 
-win_icon = '--windows-icon="%s"' % icon_file if icon_file else ""
+if not val["use-console"] or ext.lower() == ".pyw":
+    cmd.append("--windows-disable-console")
+
+if icon_file:
+    cmd.append('--windows-icon="%s"' % icon_file)
 
 if compile_to:                    # create inside output folder
     output = '--output-dir="%s"' % compile_to
@@ -121,41 +149,52 @@ else:                             # create inside script folder
     dname = os.path.dirname(os.path.abspath(pscript))
     output = '--output-dir="%s"' % dname
 
+cmd.append(output)
+
 if val["qt-support"]:
-    qt = "--plugin-enable=qt-plugins"
-else:
-    qt = ""
-cmd = 'python -m nuitka --standalone --remove-output %s %s %s %s %s "%s"'
-cmd = cmd % (qt, val["add-args"], output, win_no_con, win_icon, pscript)
+    cmd.append("--plugin-enable=qt-plugins")
 
-while "  " in cmd:
-    cmd = cmd.replace("  ", " ")
+if val["add-args"]:
+    cmd.append(val["add-args"])
 
+cmd.append('"' + pscript + '"')
+cmd = " ".join(cmd)
+message = ["Now executing Nuitka ...", cmd, "\nPlease be patient and let it finish ...!"]
+sg.Popup(message[0], "\n".join(message[1:]), 
+         auto_close=True, auto_close_duration=None,
+         non_blocking=True)
 print(sep_line)
-print("Now executing:\n")
-print(cmd)
-print("\nNext messages are from nuitka compilation - please be patient.")
-print(sep_line)
-
-subprocess.call(cmd)
-
+print("\n".join(message))
 print(sep_line)
 
-if not os.path.exists(pscript_dist) or os.path.exists(pscript_build):
-    raise SystemExit("Nuitka compile failed! Exiting.")
+rc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                      stderr=subprocess.PIPE,
+                      shell=True)
 
-print("Nuitka compile successful.")
+return_code = rc.wait()
+
+if not os.path.exists(pscript_dist) or os.path.exists(pscript_build) or return_code != 0:
+    message = ["Nuitka compile failed!", "\nMessages:\n",
+               rc.stdout.read().decode(encoding="utf-8", errors="ignore"),
+               rc.stderr.read().decode(encoding="utf-8", errors="ignore")]
+    print("".join(message))
+    sg.Popup(message[0], "".join(message[1:]))
+    raise SystemExit()
+
 print(sep_line)
+
+message = "Nuitka compile successful ..."
 
 if not compile_to:                     # finished if no special output folder
+    sg.Popup(message, "The EXE file is in '%s'" % pscript_dist)
     raise SystemExit()
 
 #------------------------------------------------------------------------------
 # merge new binaries
 #------------------------------------------------------------------------------
-print("Now merging binary files.")
+message = [message, "Now merging binary files."]
+print("\n".join(message))
 print(sep_line)
-
 copy_this = []                              # collect to-be-merged files here
 
 # collect new files and check binary compatibility of existing ones
@@ -173,10 +212,15 @@ for root, _, files in os.walk(pscript_dist):
         x = open(os.path.join(root, f), "rb").read()
         y = open(bin_fn, "rb").read()
         if x != y:
-            print("Cannot merge: incompatible binary file")
-            print(bin_fn)
-            print("Nuitka folder '%s' still exists and is usable." % pscript_dist)
+            m = "Cannot merge incompatible binary file '%s'," % f
+            message.append(m)
+            print(m)
+            m = "but folder '%s' still exists and is usable." % pscript_dist
+            message.append(m)
+            print(m)
             print(sep_line)
+            message.append("Consider using script 'exe-merger.py'.")
+            sg.Popup(message[0], "\n".join(message[1:]))
             raise SystemExit()
 
 # we are good, now copy new stuff

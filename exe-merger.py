@@ -26,15 +26,17 @@ form.Close()
 
 print(sep_line)
 
+i_dir = val["from"]
 if i_dir:
-    i_dir = os.path.abspath(val["from"])
+    i_dir = os.path.abspath(i_dir)
     if not os.path.exists(i_dir):
         raise SystemExit("Input folder '%s' does not exist." % i_dir)
 else:
     raise SystemExit("Input folder must be given.")
 
+o_dir = val["to"]
 if o_dir:
-    o_dir = os.path.abspath(val["to"])
+    o_dir = os.path.abspath(o_dir)
     if not os.path.exists(o_dir):
         raise SystemExit("Output folder '%s' does not exist." % o_dir)
 else:
@@ -75,7 +77,7 @@ for root, _, files in os.walk(i_dir):
                 print(sep_line)
                 raise SystemExit()
             else:
-                print("Warning: force-merging binary\n", bin_fn)
+                print("Warning: force-merging", bin_fn)
                 copy_this.append(item)
                 continue
 
