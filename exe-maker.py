@@ -5,16 +5,24 @@ py2 = str is bytes
 if py2:                      # last tk/tcl qualifyers depend on Python version
     tk_lq  = "tk8.5"
     tcl_lq = "tcl8.5"
-    import PySimpleGUI27 as sg
 else:
     tk_lq  = "tk8.6"
     tcl_lq = "tcl8.6"
-    import PySimpleGUI as sg
+
+import PySimpleGUI as sg
 
 sys_tcl = os.path.join(os.path.dirname(sys.executable), "tcl")
 tk  = os.path.join(sys_tcl, tk_lq)
 tcl = os.path.join(sys_tcl, tcl_lq)
 tkinter_available = os.path.exists(tk) and os.path.exists(tcl)
+if not tkinter_available:
+    try:
+        tk = os.environ["TCL_LIBRARY"]
+        tcl = os.environ["TCL_LIBRARY"]
+        tkinter_available = os.path.exists(tk) and os.path.exists(tcl)
+    except:
+        pass
+
 
 sep_line = "".ljust(80, "-")
 message = sg.Text("", size=(60,1))
@@ -159,10 +167,7 @@ if val["add-args"]:
 
 cmd.append('"' + pscript + '"')
 cmd = " ".join(cmd)
-message = ["Now executing Nuitka ...", cmd, "\nPlease be patient and let it finish ...!"]
-sg.Popup(message[0], "\n".join(message[1:]), 
-         auto_close=True, auto_close_duration=None,
-         non_blocking=True)
+message = ["Now executing Nuitka. Please be patient and let it finish!", cmd]
 print(sep_line)
 print("\n".join(message))
 print(sep_line)
@@ -171,14 +176,18 @@ rc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                       stderr=subprocess.PIPE,
                       shell=True)
 
+sg.Popup(message[0], message[1], "This window will auto-close soon.",
+         auto_close=True, auto_close_duration=10,
+         non_blocking=False)
+
 return_code = rc.wait()
 
 if not os.path.exists(pscript_dist) or os.path.exists(pscript_build) or return_code != 0:
-    message = ["Nuitka compile failed!", "\nMessages:\n",
-               rc.stdout.read().decode(encoding="utf-8", errors="ignore"),
-               rc.stderr.read().decode(encoding="utf-8", errors="ignore")]
-    print("".join(message))
-    sg.Popup(message[0], "".join(message[1:]))
+    rc_output  = rc.stdout.read().decode(encoding="utf-8", errors="replace")
+    rc_output += rc.stderr.read().decode(encoding="utf-8", errors="replace")
+    message = ["Nuitka compile failed!", "Messages:", rc_output]
+    print("\n".join(message))
+    sg.Popup(message[0], message[1], rc_output)
     raise SystemExit()
 
 print(sep_line)
@@ -192,6 +201,7 @@ if not compile_to:                     # finished if no special output folder
 #------------------------------------------------------------------------------
 # merge new binaries
 #------------------------------------------------------------------------------
+import filecmp
 message = [message, "Now merging binary files."]
 print("\n".join(message))
 print(sep_line)
@@ -209,9 +219,7 @@ for root, _, files in os.walk(pscript_dist):
             copy_this.append(item)
             continue
         # duplicate binaries must be identical on bit level
-        x = open(os.path.join(root, f), "rb").read()
-        y = open(bin_fn, "rb").read()
-        if x != y:
+        if not filecmp.cmp(os.path.join(root, f), bin_fn, shallow=False):
             m = "Cannot merge incompatible binary file '%s'," % f
             message.append(m)
             print(m)
@@ -234,3 +242,6 @@ for f in copy_this:
     shutil.copy2(f1, f2)
 
 shutil.rmtree(pscript_dist, ignore_errors=True)
+sg.Popup("Successful execution",
+          "Merged %i binaries to '%s'." % (len(copy_this), compile_bin),
+          auto_close = True, auto_close_duration = 5)

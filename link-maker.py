@@ -66,6 +66,7 @@ while True:
         shortcut.SetPath(exe_file)                         # set file path
         shortcut.SetDescription ("Link to %s" % exe_file)  # set description
         shortcut.SetIconLocation (exe_file, 0)             # set the icon
+        shortcut.SetWorkingDirectory(exe_filedir)
         persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
         persist_file.Save(os.path.join(tar_folder, "%s.lnk" % exe_name.title()), 0)
         shortcut = None

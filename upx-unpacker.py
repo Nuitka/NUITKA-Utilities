@@ -13,7 +13,7 @@ sep_line = "".ljust(80, "-")
 try:
     print(sep_line)
     print("Checking availability of upx:\n", end="", flush=True)
-    rc = sp.call(("upx", "-q"))                # test presence of upx
+    rc = sp.call(("upx", "-qq"))                # test presence of upx
     print("OK: upx is available.")
     print(sep_line)
 except:

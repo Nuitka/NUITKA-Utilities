@@ -65,7 +65,7 @@ Does the opposite of `upx-packer.py`.
 
 Use it to undo a upx-compression -- for example if you encounter problems.
 
-> Please note that - at least under Windows - UPX decompression **does not restore** binary identity with the original. Therefore, merging new compiles into a packed or unpacked folder ***will always fail*** when using `exe-maker.py`.
+> Please note that - at least under Windows - UPX decompression **does not restore** binary identity with the original. Therefore, merging new compiles into a packed or unpacked folder ***will always fail*** when using `exe-maker.py`. But look at script ``exe-merger.py`` for ways out of this stumble block.
 
 ```
 D:\Jorj\Desktop\rest-folder>python upx-unpacker.py bin
@@ -91,11 +91,13 @@ Decompression runtime is very short anyway.
 
 -----
 ## exe-merger.py
-Yet another script to merge two folders with binaries. Should be used when `make.exe.py` refuses to merge compilation output because of "incompatible" files.
+Yet another script to merge two folders with binaries. Can be used if `exe-maker.py` refuses to merge compilation output because of "incompatible" binaries.
 
 This script can resolve all "incompatibility" situations via a "force-mode" merge. In this case source files overwrite same-named files in the target.
 
-> If you want to exercise greater care, you can first try to either compress or decompress both, source and target folders and then try the merge again.
+> If you want to exercise greater care, you can first try to compress or decompress both, source and target folders repeatedly and then use this script again:
+>
+> * after first decompression, UPX will **not re-instate** binary equality with the original file. But after another round of compression / decompression, results will remain stable and you should be able to successfully merge them.
 
 You will finally have a merged target folder, which you then again can (de-) compress as required.
 
