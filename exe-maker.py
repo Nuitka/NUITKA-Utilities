@@ -29,6 +29,8 @@ message = sg.Text("", size=(60,1))
 frm_input = sg.InputText("", key="py-file", do_not_clear=False)
 frm_output = sg.InputText("", key="compile-to", do_not_clear=True)
 frm_icon = sg.InputText("", key="icon-file", do_not_clear=True)
+frm_follow = sg.InputText("", size=(60,2), key="follow", do_not_clear=True)
+frm_no_follow = sg.InputText("", size=(60,2), key="no-follow", do_not_clear=True)
 form = sg.FlexForm('Nuitka Standalone EXE Generation')
 
 compile_to = pscript = icon_file = ""
@@ -46,8 +48,12 @@ layout = [
     [sg.Checkbox("Use Console", default=True, key="use-console"),
      sg.Checkbox("Tk Support", default=False, key="tk-support"),
      sg.Checkbox("Qt Support", default=False, key="qt-support"),],
-    [sg.Text("More Nuitka args:")],
-    [sg.InputText("", key="add-args", size=(60,2))],
+    [sg.Text("Follow imports (comma-separated):")],
+    [frm_follow],
+    [sg.Text("Do NOT follow these:")],
+    [frm_no_follow],
+    [sg.Text("Other Nuitka args:")],
+    [sg.InputText("", key="add-args", size=(60,2), do_not_clear=True)],
     [message],
     [sg.Submit(), sg.Cancel()]
 ]
@@ -138,7 +144,7 @@ if compile_to:
     pscript_build = os.path.join(compile_to, os.path.basename(pscript_build))
 
 if os.path.exists(pscript_dist):
-    print("Removing old nuitka files ... ", end="", flush=True)
+    print("Removing old Nuitka output ... ", end="", flush=True)
     shutil.rmtree(pscript_dist, ignore_errors=True)
     shutil.rmtree(pscript_build, ignore_errors=True)
     print("done.")
@@ -161,6 +167,21 @@ cmd.append(output)
 
 if val["qt-support"]:
     cmd.append("--plugin-enable=qt-plugins")
+
+if val["tk-support"]:
+    val["follow"] = "tkinter," + val["follow"]
+
+if val["follow"]:
+    tab = val["follow"].split(",")
+    for t in tab:
+        if t:
+            cmd.append("--recurse-to=" + t.strip())
+
+if val["no-follow"]:
+    tab = val["no-follow"].split(",")
+    for t in tab:
+        if t:
+            cmd.append("--recurse-not-to=" + t.strip())
 
 if val["add-args"]:
     cmd.append(val["add-args"])
