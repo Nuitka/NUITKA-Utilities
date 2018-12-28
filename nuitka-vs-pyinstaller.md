@@ -25,7 +25,7 @@ import fitz
 
 Packed together in one **common distribution folder** yielded the following results (MB):
 
-| Method | lzma | -9 | normal |
+| UPX: | --lzma | -9 | none |
 | ------ | ---- | -- | ------ |
 | PyInstaller | 150.0 | 175.2 | 613.0 |
 | Nuitka | 50.0 | 55.6 | 151.1 |
