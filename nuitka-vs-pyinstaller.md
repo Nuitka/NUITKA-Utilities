@@ -30,7 +30,7 @@ Packed together in one **common distribution folder** yielded the following resu
 | PyInstaller | 150.0 | 175.2 | 613.0 |
 | Nuitka | 50.0 | 55.6 | 151.1 |
 
-> I would argue that the PyInstaller non-compressed folder size is prohibitively large for -- after all -- just two scripts with a total line count of about 500. The compression sizes are still about three times larger than the Nuitka alternative.
+> I would argue that the PyInstaller non-compressed folder size is prohibitively large for -- after all -- just two scripts with a total line count of about 500. Even the compression sizes are still about three times larger than the Nuitka alternative.
 
 ## Environment information:
 * Windows Version 10.0.17134.472
