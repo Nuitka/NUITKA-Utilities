@@ -8,7 +8,7 @@ And indeed, generating a simple "Hello, world!" script as an "EXE" file under Wi
 | PyInstaller | 7.18 | 7.4 | 10.4 |
 | Nuitka | 19.4 | 21.3 | 51.1 |
 
-But the situation ***changes radically*** for complex scripts!
+As can be seen, the Nuitka size is 3 to 5 times larger. But the situation ***changes radically*** for complex scripts!
 
 ## Case
 Two scripts using the following imports:
@@ -30,7 +30,7 @@ Packed together in one **common distribution folder** yielded the following resu
 | PyInstaller | 150.0 | 175.2 | 613.0 |
 | Nuitka | 50.0 | 55.6 | 151.1 |
 
-> I would argue that the PyInstaller non-compressed folder size is prohibitively large for -- after all -- just two scripts with a total line count of about 500. Even the compression sizes are still about three times larger than the Nuitka alternative.
+> I would argue that the PyInstaller non-compressed folder size is prohibitively large (**613 MB!!**) for -- after all -- just two scripts with a total line count of about 500. Even the compression sizes are still about three times larger than the Nuitka alternative.
 
 ## Environment information:
 * Windows Version 10.0.17134.472
