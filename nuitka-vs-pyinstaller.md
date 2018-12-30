@@ -8,7 +8,7 @@ And indeed, generating a simple "Hello, world!" script as an "EXE" file under Wi
 | PyInstaller | 7.18 | 7.4 | **10.4** |
 | Nuitka | 19.4 | 21.3 | **51.1** |
 
-As can be seen, the Nuitka size is 3 to 5 times larger. But the situation ***changes radically*** for complex scripts - when it counts!
+As can be seen, the Nuitka size is 3 to 5 times larger. But the situation ***changes radically*** for complex scripts - that is: when it counts!
 
 ## Case
 I have two scripts which do some Image formatting and watermarking for Instagram publications. They jointly use the following set of imports:
