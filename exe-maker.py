@@ -31,29 +31,33 @@ frm_output = sg.InputText("", key="compile-to", do_not_clear=True)
 frm_icon = sg.InputText("", key="icon-file", do_not_clear=True)
 frm_follow = sg.InputText("", size=(60,2), key="follow", do_not_clear=True)
 frm_no_follow = sg.InputText("", size=(60,2), key="no-follow", do_not_clear=True)
+frm_packages = sg.InputText("", size=(60,2), key="packages", do_not_clear=True)
+frm_modules = sg.InputText("", size=(60,2), key="modules", do_not_clear=True)
+frm_plugins = sg.InputText("", size=(60,2), key="plugin-dir", do_not_clear=True)
+frm_more = sg.InputText("", key="add-args", size=(60,2), do_not_clear=True)
 form = sg.FlexForm('Nuitka Standalone EXE Generation')
 
 compile_to = pscript = icon_file = ""
 
 layout = [
-    [sg.Text("Python Script:", size=(12,1)),
+    [sg.Text("Python Script:", size=(13,1)),
      sg.InputText("", key="py-file", do_not_clear=True),
      sg.FileBrowse(button_text="...", file_types=(("Python Files","*.py*"),))],
-    [sg.Text("Output Folder:", size=(12,1)),
+    [sg.Text("Output Folder:", size=(13,1)),
      frm_output,
      sg.FolderBrowse(button_text="...")],
-    [sg.Text("Icon File:", size=(12,1)),
+    [sg.Text("Icon File:", size=(13,1)),
      frm_icon,
      sg.FileBrowse(button_text="...")],
     [sg.Checkbox("Use Console", default=True, key="use-console"),
      sg.Checkbox("Tk Support", default=False, key="tk-support"),
      sg.Checkbox("Qt Support", default=False, key="qt-support"),],
-    [sg.Text("Follow imports (comma-separated):")],
-    [frm_follow],
-    [sg.Text("Do NOT follow these:")],
-    [frm_no_follow],
-    [sg.Text("Other Nuitka args:")],
-    [sg.InputText("", key="add-args", size=(60,2), do_not_clear=True)],
+    [sg.Text("Recurse into:", size=(13,1)), frm_follow],
+    [sg.Text("No recurse into:", size=(13,1)), frm_no_follow],
+    [sg.Text("Include packages:", size=(13,1)), frm_packages],
+    [sg.Text("Include modules:", size=(13,1)), frm_modules],
+    [sg.Text("Include plugin-dir:", size=(13,1)), frm_plugins],
+    [sg.Text("More Nuitka args:", size=(13,1)), frm_more],
     [message],
     [sg.Submit(), sg.Cancel()]
 ]
@@ -183,6 +187,24 @@ if val["no-follow"]:
         if t:
             cmd.append("--recurse-not-to=" + t.strip())
 
+if val["packages"]:
+    tab = val["packages"].split(",")
+    for t in tab:
+        if t:
+            cmd.append("--include-package=" + t.strip())
+
+if val["modules"]:
+    tab = val["modules"].split(",")
+    for t in tab:
+        if t:
+            cmd.append("--include-module=" + t.strip())
+
+if val["plugin-dir"]:
+    tab = val["plugin-dir"].split(",")
+    for t in tab:
+        if t:
+            cmd.append("--include-plugin-directory=" + t.strip())
+
 if val["add-args"]:
     cmd.append(val["add-args"])
 
@@ -193,9 +215,7 @@ print(sep_line)
 print("\n".join(message))
 print(sep_line)
 
-rc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                      stderr=subprocess.PIPE,
-                      shell=True)
+rc = subprocess.Popen(cmd, shell=True)
 
 sg.Popup(message[0], message[1], "This window will auto-close soon.",
          auto_close=True, auto_close_duration=10,
@@ -204,11 +224,9 @@ sg.Popup(message[0], message[1], "This window will auto-close soon.",
 return_code = rc.wait()
 
 if not os.path.exists(pscript_dist) or os.path.exists(pscript_build) or return_code != 0:
-    rc_output  = rc.stdout.read().decode(encoding="utf-8", errors="replace")
-    rc_output += rc.stderr.read().decode(encoding="utf-8", errors="replace")
-    message = ["Nuitka compile failed!", "Messages:", rc_output]
+    message = ["Nuitka compile failed!", "Check its output!"]
     print("\n".join(message))
-    sg.Popup(message[0], message[1], rc_output)
+    sg.Popup(message[0], message[1])
     raise SystemExit()
 
 print(sep_line)
