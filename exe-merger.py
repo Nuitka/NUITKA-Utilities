@@ -65,7 +65,7 @@ for root, _, files in os.walk(i_dir):
         if not os.path.exists(bin_fn):      # always merge any *new* binary
             copy_this.append(item)
             continue
-        # duplicate binaries must be identical on bit level
+        # duplicate files must be identical on bit level
         x = open(os.path.join(root, f), "rb").read()
         y = open(bin_fn, "rb").read()
         if x != y:
@@ -91,5 +91,3 @@ for f in copy_this:
         os.makedirs(f2)
     print("\nCopying '%s' to:\n'%s'" % (f1, f2))
     shutil.copy2(f1, f2)
-
-shutil.rmtree(i_dir, ignore_errors=True)

@@ -1,4 +1,4 @@
-import sys, os, subprocess, shutil
+import sys, os, subprocess as sp, shutil, time
 
 py2 = str is bytes
 
@@ -11,6 +11,11 @@ else:
 
 sep_line = "".ljust(80, "-")
 
+#------------------------------------------------------------------------------
+# Scripts using Tkinter need a pointer to our location of Tkinter
+# libraries. The following statements will do this job when prepended to
+# the script's source.
+#------------------------------------------------------------------------------
 prepend = """
 import os, sys
 os.environ["TCL_LIBRARY"] = os.path.join(sys.path[0], "%s")
@@ -29,14 +34,75 @@ def rename_script(fname):
     fout.write(text)
     fout.close()
 
-
-
 def restore_script(fname):
     dirname, basename = os.path.split(fname)
     os.remove(fname)
     os.rename(os.path.join(dirname, "exe-maker-" + basename), fname)
     print(sep_line)
     print("Restored original version of '%s'." % fname)
+
+def upx_compress(bin_dir):
+    print("UPX Compression of binaries in folder '%s'" % bin_dir)
+    try:
+        print(sep_line)
+        print("Checking availability of upx:\n", end="", flush=True)
+        sp.call(("upx", "-qq"))                # test presence of upx
+        print("OK: upx is available.")
+        print(sep_line)
+    except:
+        return False
+    tasks = []
+    file_count = 0
+    file_sizes = {}
+    t0 = time.time()
+    for root, _, files in os.walk(bin_dir):
+        root = root.lower()
+        for f in files:
+            f = f.lower()
+            fname = os.path.join(root, f)
+            file_sizes[fname] = os.stat(fname).st_size
+            if "qt-plugins" in root:
+                continue
+            if not f.endswith((".exe", ".dll", "pyd")):   # we only handle these
+                continue
+            if f.endswith(".dll"):
+                if f.startswith("python"):
+                    continue
+                if f.startswith("vcruntime"):
+                    continue
+                if f.startswith("msvcp"):
+                    continue
+                if f.startswith("cldapi"):
+                    continue
+                if f.startswith("edp"):
+                    continue
+
+            # make the upx invocation command
+            cmd = ('upx', '-9', fname)
+            t = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
+            tasks.append(t)
+            file_count += 1
+
+    print("Started %i compressions out of %i total files ..." % (file_count,
+          len(file_sizes.keys())), flush=True)
+
+    for t in tasks:
+        t.wait()
+
+    t1 = time.time() - t0
+    print("Finished in {:3.3} seconds.".format(t1), flush=True)
+    old_size = new_size = 0.0
+    for f in file_sizes.keys():
+        old_size += file_sizes[f]
+        new_size += os.stat(f).st_size
+    old_size *= 1./1024/1024
+    new_size *= 1./1024/1024
+    diff_size = old_size - new_size
+    diff_percent = diff_size / old_size
+    text = "\nFolder Compression Results (MB)\nbefore: {:.5}\nafter: {:.5}\nsavings: {:.5} ({:2.1%})"
+    print(text.format(old_size, new_size, diff_size, diff_percent))
+    print(sep_line)
+    return True
 
 import PySimpleGUI as sg
 
@@ -78,9 +144,13 @@ layout = [
      frm_icon,
      sg.FileBrowse(button_text="...")],
     [sg.Checkbox("Remove Output", default=True, key="remove-build"),
-     sg.Checkbox("Use Console", default=True, key="use-console"),
+     sg.Checkbox("Rebuild Dep. Cache", default=False, key="rebuild-cache"),
+     sg.Checkbox("Use UPX-Packer", default=False, key="compress")
+    ],
+    [sg.Checkbox("Use Console", default=True, key="use-console"),
      sg.Checkbox("Tk Support", default=False, key="tk-support"),
-     sg.Checkbox("Qt Support", default=False, key="qt-support"),],
+     sg.Checkbox("Qt Support", default=False, key="qt-support")
+    ],
     [sg.Text("Recurse into:", size=(13,1)), frm_follow],
     [sg.Text("No recurse into:", size=(13,1)), frm_no_follow],
     [sg.Text("Include packages:", size=(13,1)), frm_packages],
@@ -147,6 +217,9 @@ cmd = ["python", "-m", "nuitka", "--standalone", "--python-flag=nosite",]
 if not val["use-console"] or ext.lower() == ".pyw":
     cmd.append("--windows-disable-console")
 
+if val["rebuild-cache"]:
+    cmd.append("--force-dll-dependency-cache-update")
+
 if val["remove-build"]:
     cmd.append("--remove-output")
 
@@ -206,7 +279,7 @@ print(sep_line)
 message = ["Now executing Nuitka. Please be patient and let it finish!", cmd]
 print("\n".join(message))
 
-rc = subprocess.Popen(cmd, shell=True)
+rc = sp.Popen(cmd, shell=True)
 
 sg.Popup(message[0], message[1], "This window will auto-close soon.",
          auto_close=True, auto_close_duration=10,
@@ -226,7 +299,14 @@ if return_code != 0:
 print(sep_line)
 
 message = "Nuitka compile successful ..."
+
+if val["compress"]:
+    rc = upx_compress(pscript_dist)
+    if not rc:
+        message += "\nUPX is not available on this system!"
+
 print(message)
+
 if val["tk-support"]:
     print("Making Tkinter library folders ...", end="", flush=True)
     tar_tk  = os.path.join(pscript_dist, tk_lq)
@@ -237,6 +317,7 @@ if val["tk-support"]:
     shutil.rmtree(os.path.join(tar_tk, "demos"), ignore_errors=True)
     print("done.")
 
-sg.Popup(message, "The EXE file is in '%s'" % pscript_dist)
+sg.Popup(message, "The EXE file is in '%s'" % pscript_dist,
+         auto_close=True, auto_close_duration=5)
 
 raise SystemExit()
