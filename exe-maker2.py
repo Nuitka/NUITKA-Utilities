@@ -23,6 +23,23 @@ os.environ["TK_LIBRARY"] = os.path.join(sys.path[0], "%s")
 
 """ % (tcl_lq, tk_lq)
 
+def remove_skimmed(bin_dir, val):
+    print(sep_line)
+    print("Remove (hopefully!) not needed binaries from '%s'." % bin_dir)
+    flist = os.listdir(bin_dir)
+    removed_files = []
+    for f in flist:
+        f = f.lower()
+        if f.endswith(".exe"): continue
+        if f.startswith("python") and f.endswith(".dll"): continue
+        if f.startswith(("vcruntime", "msvcrt")): continue
+        if val["tk-support"]:
+            if f.startswith(("tk", "tcl", "_tkinter")) and f.endswith((".dll", ".pyd")):
+                continue
+        os.remove(os.path.join(bin_dir, f))
+        removed_files.append(f)
+    print("Files removed:\n", removed_files)
+
 def rename_script(fname):
     print(sep_line)
     print("Tk-modifying '%s' for Nuitka." % fname)
@@ -143,9 +160,10 @@ layout = [
     [sg.Text("Icon File:", size=(13,1)),
      frm_icon,
      sg.FileBrowse(button_text="...")],
-    [sg.Checkbox("Remove Output", default=True, key="remove-build"),
-     sg.Checkbox("Rebuild Dep. Cache", default=False, key="rebuild-cache"),
-     sg.Checkbox("Use UPX-Packer", default=False, key="compress")
+    [sg.Checkbox("Remove <.build>", default=True, key="remove-build"),
+     sg.Checkbox("Rebuild Dep. Cache", text_color="#FF0000", default=False, key="rebuild-cache"),
+     sg.Checkbox("Use UPX-Packer", default=False, key="compress"),
+     sg.Checkbox("Skim Binaries (Caution!)", text_color="#FF0000", default=False, key="skim"),
     ],
     [sg.Checkbox("Use Console", default=True, key="use-console"),
      sg.Checkbox("Tk Support", default=False, key="tk-support"),
@@ -299,6 +317,9 @@ if return_code != 0:
 print(sep_line)
 
 message = "Nuitka compile successful ..."
+
+if val["skim"]:
+    remove_skimmed(pscript_dist, val)
 
 if val["compress"]:
     rc = upx_compress(pscript_dist)
