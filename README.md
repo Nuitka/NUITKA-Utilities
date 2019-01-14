@@ -6,23 +6,35 @@ A collection of scripts involving Python compilations with NUITKA
 This script shows a GUI (using tkinter / [PySimpleGUI](https://github.com/MikeTheWatchGuy/PySimpleGUI)) to ask for a Python script name and then invokes NUITKA to generate a **standalone EXE** file from it.
 
 ### Features
-* sets a number of NUITKA default parameters (e.g. "remove output")
-* selectable TK/TCL support
-* selectable Qt support
-* selectable script console window (auto set off for script extension `*.pyw`)
-* supports icon files
+* sets a number of NUITKA default parameters
+* several configuration options
 * arbitrary additional NUITKA parameters
-* supports a **central folder** to automatically collect binaries from multiple compilations
+* optional invocation of UPX packer for binary output
+* optional request to rebuild the dependency cache
+* experimental: button to remove unneeded binaries (**"skimming"**)
 
 ### Note 1
-If a central folder for the binaries is requested, this folder is either automatically created or extended with the new binary file(s). An existing folder will first be checked for compatibility (to prevent things like different Python versions or different versions of the same imported package).
-
-After a successful check, only new files will be included in that folder. After creation, this will tend to be just the new or changed EXE file (and maybe a handful more).
-
-In this way, you can build up a folder with your compiled standalone Python binaries over time.
+A central folder to merge several binary `.dist` folders is no longer supported by this script. Use `exe-merger.py` for this purpose - it contains all the required functiuonality.
 
 ### Note 2
-If your program uses tkinter, you must request TK/TCL file inclusion. This is however only supported if you **also specify an output folder** for the binaries. It is possible to **use the script's folder** for this, but you must specify it. The folder will afterwards contain two new sub-folders named `bin` and `lib` respectively. You must include both of these sub-folders if you later want to distribute your binaries.
+If your program uses Tkinter, you **must check** the respective button. We will include the required Tkinter libraries as subfolders and **automatically redirect** Tkinter requests of your script to them. This is done by temporarily replacing your script with a slightly modified version.
+
+There currently exists the following limitation: if your program imports the `__future__` module, we are not able to correctly make this modification. In this case, you **need to modify** your script and insert the following statement after all `__future__` imports (and any other compiler directives, encoding, etc.). It formally is a Python comment line and thus will not interfere with normal script execution:
+
+```python
+#redirect tkinter
+```
+
+### Note 3
+The "Skim" button is an experimental functionality to reduce the size of the `dist` folder. It removes lots of binaries - most of them unnecessary indeed. As per this writing, this feature is still under development. It currently takes the following precautions
+
+* do not remove `pythonxy.dll` and Windows runtime DLLs, `vcruntimexxx.dll`and `msvcrt.dll`.
+* do not remove Tkinter components if TK-Support button clicked
+* do not remove wxPython binaries
+* only inspect the `dist` root folder
+* do removals **before** eventually invoking UPX
+
+TODO: do not remove Qt, numpy, scipy, ... components.
 
 -----
 ## upx-packer.py
