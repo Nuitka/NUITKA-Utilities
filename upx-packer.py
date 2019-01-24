@@ -22,8 +22,9 @@ except:
 try:
     bin_dir = sys.argv[1]
 except:
-    bin_dir = psg.PopupGetFolder("UPX Compression of binaries",
-                                "Enter folder:")
+    bin_dir = psg.PopupGetFolder("Enter folder:",
+                                 "UPX Compression of binaries",
+                                )
 
 if not bin_dir:
     raise SystemExit("Cancel requested")
@@ -68,8 +69,8 @@ print("Started %i compressions out of %i total files ..." % (file_count, len(fil
 for t in tasks:
     t.wait()
 
-t1 = time.time() - t0
-print("Finished in {:3.3} seconds.".format(t1), flush=True)
+t1 = int(round(time.time() - t0))
+print("Finished in %i seconds." % t1, flush=True)
 old_size = new_size = 0.0
 for f in file_sizes.keys():
     old_size += file_sizes[f]

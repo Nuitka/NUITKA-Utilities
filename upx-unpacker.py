@@ -62,8 +62,8 @@ print("Started %i de-compressions out of %i total files ..." % (file_count, len(
 for t in tasks:
     t.wait()
 
-t1 = time.time() - t0
-print("Finished in {:3.3} seconds.".format(t1), flush=True)
+t1 = int(round(time.time() - t0))
+print("Finished in %i seconds." % t1, flush=True)
 old_size = new_size = 0.0
 for f in file_sizes.keys():
     old_size += file_sizes[f]

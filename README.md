@@ -120,3 +120,12 @@ Scan a folder for ``.exe`` files and create a ``.lnk`` (link) file for each of t
 Output folder default is the user desktop.
 
 Script runs under Windows only and requires packages ``pythoncom`` and ``win32com`` to be installed.
+
+-----
+## exe-maker2.py
+This is an advanced version of exe-maker. It supports the following features in addition:
+
+1. Automatical use of the new dependency checker (based on [pefile](https://github.com/erocarrera/pefile)), which currently still is in experimental state. This feature uses a Python package to trace down binaries that are used by the script. Experience so far looks very promising - especially in terms of execution speed.
+2. A new Nuitka plugin for ``Tkinter``. This obsoletes any special precautions by the programmer: The plugin will automatically copy Tkinter libraries and re-direct Tk requests to them.
+3. A new Nuitka plugin for ``numpy``. Support for Numpy must be explicitely requested, similar to that for Qt and Tk. As far as I know, without this plugin, scripts cannot be successfully **compiled standalone** at all, if they use a ``"numpy+MKL"`` version.
+4. exe-maker2.py will actively avoid scanning for imported packages that are not checkmarked, and will delete any releated binaries from the ``dist`` folder.

@@ -22,94 +22,53 @@ sep_line = "".ljust(80, "-")
 # The following statements will do this job when inserted into
 # the script's source.
 #------------------------------------------------------------------------------
-prepend = ("""
-import os, sys
-os.environ["TCL_LIBRARY"] = os.path.join(sys.path[0], "%s")
-os.environ["TK_LIBRARY"] = os.path.join(sys.path[0], "%s")
 
-""" % (tcl_lq, tk_lq)).splitlines()
-
-def rename_script(fname):
-    """Modify script temporarily so it takes TK/TCL files from somewhere else.
-    """
+def mini_skim(bin_dir, val):
     print(sep_line)
-    print("Tk-modifying '%s' for Nuitka." % fname)
-    text = open(fname).read()
-    text = text.splitlines()       # read the script
-    
-    inserted = False
-    for i, z in enumerate(text):
-        z = z.lower()
-        if z.startswith("#redirect ") and " tkinter" in z:
-            for j, l in enumerate(prepend):
-                text.insert(i+1+j, l)
-            inserted = True
-            break
-
-    if not inserted:
-        text = prepend + text
-
-    text = "\n".join(text)
-
-    dirname, basename = os.path.split(fname)     # separate dir and script name
-    os.rename(fname, os.path.join(dirname, "exe-maker-" + basename)) # rename
-    
-    fout = open(fname, "w")                      # write result back
-    fout.write(text)
-    fout.close()
-
-def remove_skim(bin_dir, val):
-    print(sep_line)
-    print("Remove (hopefully!) not needed binaries from '%s'." % bin_dir)
+    print("Removing not needed binaries from '%s'." % bin_dir)
     flist = os.listdir(bin_dir)
+    candidates = [                     # unnecessary in dist root folder
+                  "mkl_rt.dll",        # Intel MKL for numpy
+                  "tbb.dll",           # Intel MKL for numpy
+                 ]
     removed_files = []
     for f in flist:
         f = f.lower()                            # prevent the awkward
-
-        if not f.endswith((".dll", ".pyd")):     # only remove any of them
-            continue
-
-        # protect "python<xy>.dll"
-        if f.startswith("python") and f.endswith(".dll"): continue
-
-        # protect wxPython
-        if f.startswith("wx") and f.endswith(".dll"): continue
-
-        # protect libraries using SIP
-        if f == "sip.pyd": continue
-
-        # protect Windows runtime
-        if f.startswith(("vcruntime", "msvcrt")): continue
-
-        # protect Qt
-        if (val["qt-support"]
-            and f.startswith("qt") 
-            and f.endswith((".dll", ".pyd"))):
-            continue
-
-        # protect Tkinter
-        if (val["tk-support"]
-            and f.startswith(("tk", "tcl", "_tkinter")) 
-            and f.endswith((".dll", ".pyd"))):
-            continue
-
         remove_fn = os.path.join(bin_dir, f)     # removal candidate
 
-        # ignore non-files
-        if not os.path.isfile(remove_fn): continue
-        os.remove(remove_fn)
-        removed_files.append(f)
+        # handle Tkinter
+        if ((not val["tk-support"])
+            and f.startswith(("tk", "tcl", "_tkinter")) 
+            and f.endswith((".dll", ".pyd"))):
+            os.remove(remove_fn)
+            removed_files.append(f)
+            continue
 
-    print("Files removed:\n", removed_files)
+        # handle Qt libraries
+        if not val["qt-support"]:
+            if (os.path.isfile(remove_fn)
+                and f.startswith("qt")
+                and f.endswith((".dll", ".pyd"))):
+                os.remove(remove_fn)
+                removed_files.append(f)
+                continue
 
-def restore_script(fname):
-    """Undo 'rename_script' above.
-    """
-    dirname, basename = os.path.split(fname)
-    os.remove(fname)
-    os.rename(os.path.join(dirname, "exe-maker-" + basename), fname)
-    print(sep_line)
-    print("Restored original version of '%s'." % fname)
+            if (os.path.isdir(remove_fn)
+                and f.startswith("pyqt")):
+                shutil.rmtree(remove_fn, ignore_errors=True)
+                removed_files.append("folder: " + f)
+                continue
+
+        if f in candidates:
+            os.remove(remove_fn)
+            removed_files.append(f)
+
+    if len(removed_files) == 0:
+        removed_files = None
+    else:
+        removed_files = str(removed_files)[1:-1] + "."
+
+    print("Files and folders removed:", removed_files)
 
 def upx_compress(bin_dir):
     print("UPX Compression of binaries in folder '%s'" % bin_dir)
@@ -159,8 +118,8 @@ def upx_compress(bin_dir):
     for t in tasks:
         t.wait()
 
-    t1 = time.time() - t0
-    print("Finished in {:3.3} seconds.".format(t1), flush=True)
+    t1 = int(round(time.time() - t0))
+    print("Finished in %i seconds." % t1, flush=True)
     old_size = new_size = 0.0
     for f in file_sizes.keys():
         old_size += file_sizes[f]
@@ -211,17 +170,28 @@ layout = [
     [sg.Text("Icon File:", size=(13,1)),
      frm_icon,
      sg.FileBrowse(button_text="...")],
-    [sg.Checkbox("Remove <.build>", default=True, key="remove-build"),
-     sg.Checkbox("Use UPX-Packer", default=False, key="compress"),
-     sg.Checkbox("Rebuild Dep. Cache", text_color="#FF0000", default=False, key="rebuild-cache"),
-     sg.Checkbox("Skim Binaries (Caution!)", text_color="#FF0000", default=False, key="skim"),
-    ],
-    [sg.Checkbox("Use Console", default=True, key="use-console"),
+    [
+     sg.Text("App control:", size=(15,1)),
+     sg.Checkbox("Use Console", default=True, key="use-console"),
      sg.Checkbox("Tk Support", default=False, key="tk-support"),
-     sg.Checkbox("Qt Support", default=False, key="qt-support")
+     sg.Checkbox("Qt Support", default=False, key="qt-support"),
+     sg.Checkbox("Numpy Support", default=False, key="np-support"),
     ],
+    [
+     sg.Text("Output control:", size=(15,1)),
+     sg.Checkbox("Remove <.build> folder", default=True, key="remove-build"),
+     sg.Checkbox("Use UPX-Packer", default=False, key="compress"),
+    ],
+    [
+     sg.Text("Dep. cache control:", size=(15,1)),
+     sg.Checkbox("Ignore", text_color="#FF0000", default=False, key="ignore-cache"),
+     sg.Checkbox("Recurse", text_color="#FF0000",
+                 default=False, key="int-depend"),
+     sg.Checkbox("Rebuild", text_color="#FF0000", default=False, key="rebuild-cache"),
+    ],
+    [sg.Text("No recurse into:", text_color="#FF0000", size=(13,1)),
+             frm_no_follow],
     [sg.Text("Recurse into:", size=(13,1)), frm_follow],
-    [sg.Text("No recurse into:", size=(13,1)), frm_no_follow],
     [sg.Text("Include packages:", size=(13,1)), frm_packages],
     [sg.Text("Include modules:", size=(13,1)), frm_modules],
     [sg.Text("Include plugin-dir:", size=(13,1)), frm_plugins],
@@ -288,6 +258,9 @@ if not val["use-console"] or ext.lower() == ".pyw":
 if val["rebuild-cache"]:
     cmd.append("--force-dll-dependency-cache-update")
 
+if val["ignore-cache"]:
+    cmd.append("--disable-dll-dependency-cache")
+
 if val["remove-build"]:
     cmd.append("--remove-output")
 
@@ -300,9 +273,31 @@ if compile_to:
     pscript_build = os.path.join(compile_to, os.path.basename(pscript_build))
     output = '--output-dir="%s"' % compile_to
     cmd.append(output)
+else:
+    compile_to = os.path.dirname(pscript)
 
 if val["qt-support"]:
     cmd.append("--plugin-enable=qt-plugins")
+else:
+    cmd.append("--plugin-disable=qt-plugins")
+    cmd.append("--recurse-not-to=PyQt5")
+    cmd.append("--recurse-not-to=PyQt4")
+    cmd.append("--recurse-not-to=PySide")
+
+if val["tk-support"]:
+    cmd.append("--plugin-enable=tk-plugin")
+else:
+    cmd.append("--plugin-disable=tk-plugin")
+    if py2:
+        cmd.append("--recurse-not-to=Tkinter")
+    else:
+        cmd.append("--recurse-not-to=tkinter")
+
+if val["np-support"]:
+    cmd.append("--plugin-enable=numpy-plugin")
+else:
+    cmd.append("--plugin-disable=numpy-plugin")
+    cmd.append("--recurse-not-to=numpy")
 
 if val["follow"]:
     tab = val["follow"].split(",")
@@ -334,29 +329,29 @@ if val["plugin-dir"]:
         if t:
             cmd.append("--include-plugin-directory=" + t.strip())
 
+cmd.append("--experimental=useInternalDependencyWalker")
+
+if val["int-depend"]:
+    cmd.append("--experimental=recursiveInternalDependencies")
+    cmd.append("--experimental=recurseIntoSitePackagesDependencyWalker")
+
 if val["add-args"]:
     cmd.append(val["add-args"])
-
-if val["tk-support"]:
-    rename_script(pscript)
 
 cmd.append('"' + pscript + '"')
 cmd = " ".join(cmd)
 
 print(sep_line)
-message = ["Now executing Nuitka. Please be patient and let it finish!", cmd]
+message = ["Now executing Nuitka as follows. Please be patient and let it finish!\n", cmd]
 print("\n".join(message))
-print()
+print(sep_line)
 rc = sp.Popen(cmd, shell=True)
 
-sg.Popup(message[0], message[1], "This window will auto-close soon.",
-         auto_close=True, auto_close_duration=10,
+sg.Popup(message[0], message[1], "Window now auto-closing ...",
+         auto_close=True, auto_close_duration=5,
          non_blocking=False)
 
 return_code = rc.wait()
-
-if val["tk-support"]:
-    restore_script(pscript)
 
 if return_code != 0:
     message = ["Nuitka compile failed!", "Check its output!"]
@@ -368,27 +363,15 @@ print(sep_line)
 
 message = "Nuitka compile successful ..."
 
-if val["skim"]:
-    remove_skim(pscript_dist, val)
+mini_skim(pscript_dist, val)
 
 if val["compress"]:
     rc = upx_compress(pscript_dist)
     if not rc:
-        message += "\nUPX is not available on this system!"
+        message += "\nUPX is not available on any path of this system!"
 
 print(message)
-
-if val["tk-support"]:
-    print("Making Tkinter library folders ...", end="", flush=True)
-    tar_tk  = os.path.join(pscript_dist, tk_lq)
-    tar_tcl = os.path.join(pscript_dist, tcl_lq)
-    shutil.copytree(tk, tar_tk)
-    shutil.copytree(tcl, tar_tcl)
-    # TODO: Definitely do not need the demos! Anything else?
-    shutil.rmtree(os.path.join(tar_tk, "demos"), ignore_errors=True)
-    print("done.")
 
 sg.Popup(message, "The EXE file is in '%s'" % pscript_dist,
          auto_close=True, auto_close_duration=5)
 
-raise SystemExit()
