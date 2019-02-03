@@ -17,24 +17,7 @@ This script shows a GUI (using tkinter / [PySimpleGUI](https://github.com/MikeTh
 A central folder to merge several binary `.dist` folders is no longer supported by this script. Use `exe-merger.py` for this purpose - it contains all the required functiuonality.
 
 ### Note 2
-If your program uses Tkinter, you **must check** the respective button. We will include the required Tkinter libraries as subfolders and **automatically redirect** Tkinter requests of your script to them. This is done by temporarily replacing your script with a slightly modified version.
-
-There currently exists the following limitation: if your program imports the `__future__` module, we are not able to correctly make this modification. In this case, you **need to modify** your script and insert the following statement after all `__future__` imports (and any other compiler directives, encoding, etc.). It formally is a Python comment line and thus will not interfere with normal script execution:
-
-```python
-#redirect tkinter
-```
-
-### Note 3
-The "Skim" button is an experimental functionality to reduce the size of the `dist` folder. It removes lots of binaries - most of them unnecessary indeed. As per this writing, this feature is still under development. It currently takes the following precautions
-
-* do not remove `pythonxy.dll` and Windows runtime DLLs, `vcruntimexxx.dll`and `msvcrt.dll`.
-* do not remove Tkinter components if TK-Support button clicked
-* do not remove wxPython binaries
-* only inspect the `dist` root folder
-* do removals **before** eventually invoking UPX
-
-TODO: do not remove Qt, numpy, scipy, ... components.
+If your program uses Tkinter, you **must check** the respective button. This requirement only exists on Windows platforms.
 
 -----
 ## upx-packer.py
@@ -47,7 +30,7 @@ This script in contrast aims to reduce the **current binary folder size** by UPX
 ### Features
 * Takes a folder and recursively compresses each eligible file by applying UPX to it. The compressions are started as sub-tasks -- so overall execution time depends on the number of available CPUs on your machine.
 * It assumes that the ``upx.exe`` executable is contained on a path definition. Otherwise please change the script accordingly.
-* Binaries are compressed *in-place*, so the **folder will have changed** after execution. It can no longer be used to incorporate new compilation outputs -- i.e. via `exe-maker.py`.
+* Binaries are compressed *in-place*, so the **folder will have changed** after execution.
 * Depending on the folder content, the resulting size should be significantly less than 50% of the original -- expect something like a 60% reduction.
 * I am filtering out a number of binaries, which I found make the EXE files no longer executable. Among these are several PyQt binaries. Add more where you run into problems -- and please submit issues in these cases.
 
@@ -60,7 +43,7 @@ Sample output:
 D:\Jorj\Desktop\test-folder>python upx-packer.py bin
 UPX Compression of binaries in folder 'D:\Jorj\Desktop\test-folder\bin'
 Started 101 compressions out of 127 total files ...
-Finished in 19.7697 seconds.
+Finished in 20 seconds.
 
 Folder Compression Results (MB)
 before: 108.45
@@ -127,5 +110,6 @@ This is an advanced version of exe-maker. It supports the following features in 
 
 1. Automatical use of the new dependency checker (based on [pefile](https://github.com/erocarrera/pefile)), which currently still is in experimental state. This feature uses a Python package to trace down binaries that are used by the script. Experience so far looks very promising - especially in terms of execution speed.
 2. A new Nuitka plugin for ``Tkinter``. This obsoletes any special precautions by the programmer: The plugin will automatically copy Tkinter libraries and re-direct Tk requests to them.
-3. A new Nuitka plugin for ``numpy``. Support for Numpy must be explicitely requested, similar to that for Qt and Tk. As far as I know, without this plugin, scripts cannot be successfully **compiled standalone** at all, if they use a ``"numpy+MKL"`` version.
+    > The tkinter plugin is only relevant for Windows and should not be used on other platforms. If used on non-Windows platforms it will de-activate itself and issue a warning.
+3. A new Nuitka plugin for ``numpy``. Support for Numpy must be explicitely requested, similar to that for Qt and Tk. As far as I know, without this plugin, numpy scripts cannot be successfully **compiled standalone** at all - at least not on Windows or Linux.
 4. exe-maker2.py will actively avoid scanning for imported packages that are not checkmarked, and will delete any releated binaries from the ``dist`` folder.

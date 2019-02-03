@@ -17,15 +17,8 @@ else:
 
 sep_line = "".ljust(80, "-")
 
-#------------------------------------------------------------------------------
-# Scripts using Tkinter need a pointer to our location of the libraries.
-# The following statements will do this job when inserted into
-# the script's source.
-#------------------------------------------------------------------------------
-
 def mini_skim(bin_dir, val):
-    print(sep_line)
-    print("Removing not needed binaries from '%s'." % bin_dir)
+    print("Scanning the 'dist' folder for any unneeded files.")
     flist = os.listdir(bin_dir)
     candidates = [                     # unnecessary in dist root folder
                   "mkl_rt.dll",        # Intel MKL for numpy
@@ -41,7 +34,7 @@ def mini_skim(bin_dir, val):
             and f.startswith(("tk", "tcl", "_tkinter")) 
             and f.endswith((".dll", ".pyd"))):
             os.remove(remove_fn)
-            removed_files.append(f)
+            removed_files.append(f + " (Tk file)")
             continue
 
         # handle Qt libraries
@@ -50,25 +43,27 @@ def mini_skim(bin_dir, val):
                 and f.startswith("qt")
                 and f.endswith((".dll", ".pyd"))):
                 os.remove(remove_fn)
-                removed_files.append(f)
+                removed_files.append(f + " (Qt file)")
                 continue
 
             if (os.path.isdir(remove_fn)
                 and f.startswith("pyqt")):
                 shutil.rmtree(remove_fn, ignore_errors=True)
-                removed_files.append("folder: " + f)
+                removed_files.append(f + " (Qt folder)")
                 continue
 
         if f in candidates:
             os.remove(remove_fn)
-            removed_files.append(f)
+            removed_files.append(f + " (misplaced here)")
 
     if len(removed_files) == 0:
-        removed_files = None
+        print("No files or folders were removed.")
     else:
-        removed_files = str(removed_files)[1:-1] + "."
-
-    print("Files and folders removed:", removed_files)
+        print("Removed the following files or folders:")
+        print(sep_line)
+        for f in removed_files:
+            print(os.path.join(bin_dir, f))
+    print(sep_line)
 
 def upx_compress(bin_dir):
     print("UPX Compression of binaries in folder '%s'" % bin_dir)
@@ -269,17 +264,18 @@ if icon_file:
 
 if compile_to:
     compile_to = os.path.abspath(compile_to)
-    pscript_dist = os.path.join(compile_to, os.path.basename(pscript_dist))
-    pscript_build = os.path.join(compile_to, os.path.basename(pscript_build))
-    output = '--output-dir="%s"' % compile_to
-    cmd.append(output)
 else:
     compile_to = os.path.dirname(pscript)
+
+pscript_dist = os.path.join(compile_to, os.path.basename(pscript_dist))
+pscript_build = os.path.join(compile_to, os.path.basename(pscript_build))
+output = '--output-dir="%s"' % compile_to
+cmd.append(output)
 
 if val["qt-support"]:
     cmd.append("--plugin-enable=qt-plugins")
 else:
-    cmd.append("--plugin-disable=qt-plugins")
+    cmd.append("--recurse-not-to=qtpy")
     cmd.append("--recurse-not-to=PyQt5")
     cmd.append("--recurse-not-to=PyQt4")
     cmd.append("--recurse-not-to=PySide")
@@ -287,7 +283,6 @@ else:
 if val["tk-support"]:
     cmd.append("--plugin-enable=tk-plugin")
 else:
-    cmd.append("--plugin-disable=tk-plugin")
     if py2:
         cmd.append("--recurse-not-to=Tkinter")
     else:
@@ -296,7 +291,6 @@ else:
 if val["np-support"]:
     cmd.append("--plugin-enable=numpy-plugin")
 else:
-    cmd.append("--plugin-disable=numpy-plugin")
     cmd.append("--recurse-not-to=numpy")
 
 if val["follow"]:
@@ -329,11 +323,11 @@ if val["plugin-dir"]:
         if t:
             cmd.append("--include-plugin-directory=" + t.strip())
 
-cmd.append("--experimental=useInternalDependencyWalker")
+cmd.append("--experimental=use_pefile")
 
 if val["int-depend"]:
-    cmd.append("--experimental=recursiveInternalDependencies")
-    cmd.append("--experimental=recurseIntoSitePackagesDependencyWalker")
+    cmd.append("--experimental=use_pefile_recurse")
+    cmd.append("--experimental=use_pefile_fullrecurse")
 
 if val["add-args"]:
     cmd.append(val["add-args"])
@@ -347,7 +341,7 @@ print("\n".join(message))
 print(sep_line)
 rc = sp.Popen(cmd, shell=True)
 
-sg.Popup(message[0], message[1], "Window now auto-closing ...",
+sg.Popup(message[0], message[1], "Auto-closing this window ...",
          auto_close=True, auto_close_duration=5,
          non_blocking=False)
 
