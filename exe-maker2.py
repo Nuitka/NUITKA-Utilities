@@ -1,3 +1,21 @@
+#     Copyright 2019, Jorj McKie, mailto:jorj.x.mckie@outlook.de
+#
+#     Part of "Nuitka", an optimizing Python compiler that is compatible and
+#     integrates with CPython, but also works on its own.
+#
+#     Licensed under the Apache License, Version 2.0 (the "License");
+#     you may not use this file except in compliance with the License.
+#     You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#     Unless required by applicable law or agreed to in writing, software
+#     distributed under the License is distributed on an "AS IS" BASIS,
+#     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#     See the License for the specific language governing permissions and
+#     limitations under the License.
+#
+
 import sys
 import os
 import subprocess as sp
@@ -18,7 +36,7 @@ else:
 sep_line = "".ljust(80, "-")
 
 def mini_skim(bin_dir, val):
-    print("Scanning the 'dist' folder for any unneeded files.")
+    print("Scanning the 'dist' folder for removable items.")
     flist = os.listdir(bin_dir)
     candidates = [                     # unnecessary in dist root folder
                   "mkl_rt.dll",        # Intel MKL for numpy
@@ -275,7 +293,7 @@ cmd.append(output)
 if val["qt-support"]:
     cmd.append("--plugin-enable=qt-plugins")
 else:
-    cmd.append("--recurse-not-to=qtpy")
+    cmd.append("--recurse-not-to=PIL.ImageQt")
     cmd.append("--recurse-not-to=PyQt5")
     cmd.append("--recurse-not-to=PyQt4")
     cmd.append("--recurse-not-to=PySide")
@@ -283,6 +301,7 @@ else:
 if val["tk-support"]:
     cmd.append("--plugin-enable=tk-plugin")
 else:
+    cmd.append("--recurse-not-to=PIL.ImageTk")
     if py2:
         cmd.append("--recurse-not-to=Tkinter")
     else:
@@ -339,6 +358,9 @@ print(sep_line)
 message = ["Now executing Nuitka as follows. Please be patient and let it finish!\n", cmd]
 print("\n".join(message))
 print(sep_line)
+
+compile_start = time.time()            # start stop watch for the compile
+
 rc = sp.Popen(cmd, shell=True)
 
 sg.Popup(message[0], message[1], "Auto-closing this window ...",
@@ -347,6 +369,8 @@ sg.Popup(message[0], message[1], "Auto-closing this window ...",
 
 return_code = rc.wait()
 
+compile_stop = time.time()             # start stop watch for the compile
+
 if return_code != 0:
     message = ["Nuitka compile failed!", "Check its output!"]
     print("\n".join(message))
@@ -354,8 +378,8 @@ if return_code != 0:
     raise SystemExit()
 
 print(sep_line)
-
-message = "Nuitka compile successful ..."
+compile_time = int(round(compile_stop - compile_start))
+message = "Nuitka compile successful (%i sec) ..." % compile_time
 
 mini_skim(pscript_dist, val)
 

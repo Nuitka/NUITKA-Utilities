@@ -47,8 +47,8 @@ Finished in 20 seconds.
 
 Folder Compression Results (MB)
 before: 108.45
-after: 46.696
-savings: 61.751 (56.94%)
+after: 46.70
+savings: 61.75 (56.94%)
 
 D:\Jorj\Desktop\test-folder>
 ```
@@ -66,12 +66,12 @@ Use it to undo a upx-compression -- for example if you encounter problems.
 D:\Jorj\Desktop\rest-folder>python upx-unpacker.py bin
 UPX De-Compression of binaries in folder 'D:\Jorj\Desktop\test-folder\bin'
 Started 119 de-compressions out of 127 total files ...
-Finished in 1.71768 seconds.
+Finished in 2 seconds.
 
 Folder De-Compression Results (MB)
-before: 46.696
+before: 46.70
 after: 108.45
-growth: 61.751 (132.24%)
+growth: 61.75 (132.24%)
 
 D:\Jorj\Desktop\test-folder>
 ```
@@ -113,3 +113,16 @@ This is an advanced version of exe-maker. It supports the following features in 
     > The tkinter plugin is only relevant for Windows and should not be used on other platforms. If used on non-Windows platforms it will de-activate itself and issue a warning.
 3. A new Nuitka plugin for ``numpy``. If your Numpy installation is not the *"vanilla"* version from PyPI, but includes acceleration libraries (like Intel's MKL, installations via [blis](https://pypi.org/project/blis/), OpenBlas, and similar), then you probably must request support for Numpy explicitely, similar to that for Qt and Tk.
 4. exe-maker2.py will actively avoid scanning for imported packages that are not checkmarked, and will delete any releated binaries from the ``dist`` folder.
+
+-----
+## onfile-maker.py
+Turns a standalone ``dist`` folder into an executable, which can be distributed / handled like an installation file. Its name equals that of the script's EXE name.
+
+When executed on the target computer, it will decompress itself in the user's Desktop and then invoke ``script.exe``, passing any invocation arguments to it.
+
+After ``script.exe`` finishes, it will again delete itself from the user's Desktop.
+
+There exist alternative options for using this file:
+
+* You can execute it with parameter ``/D=...`` specifying a directory of your choice. Logical candidates for this would be fast SSD or *ramdisk* locations. If specified, this parameter will **not** be passed through to ``script.exe``.
+* You can simply extract the ``dist`` folder from the file (using programs like ``WinZip`` or ``7zip``) and then deploy the resulting ``dist`` like any installation file.
