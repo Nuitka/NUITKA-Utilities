@@ -115,7 +115,7 @@ This is an advanced version of exe-maker. It supports the following features in 
 4. exe-maker2.py will actively avoid scanning for imported packages that are not checkmarked, and will delete any releated binaries from the ``dist`` folder.
 
 -----
-## onfile-maker.py
+## onefile-maker.py
 Turns a standalone ``dist`` folder into an executable, which can be distributed / handled like an installation file. Its name equals that of the script's EXE name.
 
 When executed on the target computer, it will decompress itself in the user's Desktop and then invoke ``script.exe``, passing any invocation arguments to it.
