@@ -12,12 +12,12 @@ sep_line = "".ljust(80, "-")
 
 try:
     print(sep_line)
-    print("Checking availability of upx:\n", end="", flush=True)
+    print("Checking availability of UPX:\n", end="", flush=True)
     rc = sp.call(("upx", "-qq"))                # test presence of upx
-    print("OK: upx is available.")
+    print("OK: UPX is available.")
     print(sep_line)
 except:
-    raise SystemExit("upx not installed or missing in path definition")
+    raise SystemExit("UPX not installed or missing in path definition")
 
 try:
     bin_dir = sys.argv[1]
@@ -78,6 +78,6 @@ for f in file_sizes.keys():
 old_size *= 1./1024/1024
 new_size *= 1./1024/1024
 diff_size = old_size - new_size
-diff_percent = diff_size / old_size
-text = "\nFolder Compression Results (MB)\nbefore: {:.5}\nafter: {:.5}\nsavings: {:.5} ({:2.1%})"
-print(text.format(old_size, new_size, diff_size, diff_percent))
+diff_percent = diff_size / old_size * 100
+text = "\nFolder Compression Results (MB)\nbefore: %.2f\nafter: %.2f\nsavings: %.2f (%.1f%%)"
+print(text % (old_size, new_size, diff_size, diff_percent))

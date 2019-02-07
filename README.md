@@ -118,9 +118,9 @@ This is an advanced version of exe-maker. It supports the following features in 
 ## onefile-maker.py
 Turns a standalone ``dist`` folder into an executable, which can be distributed / handled like an installation file. Its name equals that of the script's EXE name.
 
-When executed on the target computer, it will decompress itself in the user's Desktop and then invoke ``script.exe``, passing any invocation arguments to it.
+When executed on the target computer, it will decompress itself in the $TEMP folder and then invoke ``script.exe``, passing any invocation arguments to it.
 
-After ``script.exe`` finishes, it will again delete itself from the user's Desktop.
+After ``script.exe`` finishes, it will again delete itself.
 
 There exist alternative options for using this file:
 

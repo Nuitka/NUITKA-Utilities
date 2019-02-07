@@ -12,12 +12,12 @@ sep_line = "".ljust(80, "-")
 
 try:
     print(sep_line)
-    print("Checking availability of upx:\n", end="", flush=True)
+    print("Checking availability of UPX:\n", end="", flush=True)
     rc = sp.call(("upx", "-qq"))                # test presence of upx
-    print("OK: upx is available.")
+    print("OK: UPX is available.")
     print(sep_line)
 except:
-    raise SystemExit("upx not installed or missing in path definition")
+    raise SystemExit("UPX not installed or missing in path definition")
 
 try:
     bin_dir = sys.argv[1]
@@ -37,20 +37,11 @@ file_sizes = {}
 t0 = time.time()
 for root, _, files in os.walk(bin_dir):
     for f in files:
-        f = f.lower()        # lower casing file name (Windows, stupid!)
+        f = f.lower()        # lower casing file name (it's Windows, stupid!)
         fname = os.path.join(root, f)
         file_sizes[fname] = os.stat(fname).st_size
         if not f.endswith((".exe", ".dll", "pyd")):   # we only handle these
             continue
-        if f.endswith(".dll"):
-            if f.startswith("python"):
-                continue
-            if f.startswith("vcruntime"):
-                continue
-            if f.startswith("msvcp"):
-                continue
-            if f.startswith("cldapi"):
-                continue
         # make the upx invocation commannd
         cmd = ('upx', '-d', fname)
         t = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
@@ -71,6 +62,6 @@ for f in file_sizes.keys():
 old_size *= 1./1024/1024
 new_size *= 1./1024/1024
 diff_size = new_size - old_size
-diff_percent = diff_size / old_size
-text = "\nFolder De-Compression Results (MB)\nbefore: {:.5}\nafter: {:.5}\ngrowth: {:.5} ({:.2%})"
-print(text.format(old_size, new_size, diff_size, diff_percent))
+diff_percent = diff_size / old_size * 100
+text = "\nFolder De-Compression Results (MB)\nbefore: %.2f\nafter: %.2f\ngrowth: %.2f (%.1f%%)"
+print(text % (old_size, new_size, diff_size, diff_percent))
