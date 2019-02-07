@@ -26,18 +26,15 @@ folder lives.
 
 When the installation file is executed, the dist folder is
 
-(1) decompressed in the user's temp directory
+(1) decompressed in the user's temp directory (envireonment variable $TEMP)
 (2) the original 'script.exe' is invoked, passing in any provided arguments
 (3) after 'script.exe' has finished, the dist folder is removed again
 
-The following alternative handling options are also available:
+The following handling option is also available:
 
-* execute the distribution file with parameter '/D=...' by specifying a directory,
-  which will then be used instead of the temp directory
-
-* use an unzipping utility (like 7zip, WinZip) on the distribution file to extract its
-  contents to some place. The resulting folder can then be used like any
-  installed application.
+Execute the distribution file with parameter '/D=...' by specifying a 
+directory. This folder will then be used to store 'dist', and the original
+script will not be executed as part of the installation process.
 
 Dependencies
 ------------
@@ -48,6 +45,7 @@ Dependencies
 """
 import sys
 import os
+import io
 import time
 import subprocess as sp
 import PySimpleGUI as sg
@@ -67,11 +65,12 @@ layout = [
             [sg.Submit(), sg.Cancel()]
          ]
 
-nsi = """
+nsi = """!verbose 0
 Name "%s"
 OutFile "%s"
 InstallDir $TEMP
 RequestExecutionLevel user
+!include "LogicLib.nsh"
 SilentInstall silent
 SetCompressor LZMA
 Section ""
@@ -79,13 +78,17 @@ Section ""
   File /r "%s"
 SectionEnd
 Function .onInstSuccess
-  ExecWait '"$OUTDIR\\%s" $CMDLINE'
-  RMDir /r "$OUTDIR\\%s"
+  ${If} $INSTDIR == $TEMP
+    ExecWait '"$TEMP\\%s" $CMDLINE'
+    RMDir /r "$TEMP\\%s"
+  ${EndIf}
 FunctionEnd
 """
 sep_line = "-" * 80
 # NSIS script compiler (standard installation location)
 makensis = r'"C:\Program Files (x86)\NSIS\makensis.exe"'
+# or just this if on path:
+makensis = '"makensis.exe" '
 
 form.Layout(layout)
 while 1:
@@ -119,18 +122,16 @@ dist_dir = os.path.dirname(dist)       # directory part of dist
 # finalize installation script
 nsi_final = nsi % (dist_base, os.path.join(dist_dir, one_file), dist, os.path.join(dist_base, exe), dist_base)
 
-# put NSIS installation script next to dist folder
-nsi_filename = os.path.join(dist_dir, "file.nsi")
+# put NSIS installation script to a file
+nsi_filename = dist + ".nsi"
 nsi_file = open(nsi_filename, "w")
 nsi_file.write(nsi_final)
 nsi_file.close()
 
-# now compile the installation script using NSIS
-cmd = (makensis, '"%s"' % nsi_filename)
-
 t0 = time.time()
-rc = sp.Popen(" ".join(cmd), shell=True)
-print("\nNow executing", cmd[0],
+rc = sp.Popen(makensis + nsi_filename, shell=True)
+
+print("\nNow executing", makensis,
       "\nPlease wait, this may take some time.\n", sep_line)
 return_code = rc.wait()
 

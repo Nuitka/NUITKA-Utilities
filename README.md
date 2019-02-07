@@ -115,14 +115,13 @@ This is an advanced version of exe-maker. It supports the following features in 
 4. exe-maker2.py will actively avoid scanning for imported packages that are not checkmarked, and will delete any releated binaries from the ``dist`` folder.
 
 -----
-## onefile-maker.py
-Turns a standalone ``dist`` folder into an executable, which can be distributed / handled like an installation file. Its name equals that of the script's EXE name.
+## onefile-maker.py (working on Windows)
+Turns the ``dist`` folder of a standalone compiled script (e.g. ``script.py``) into an executable file, which can be distributed / handled like an installation file. Its name equals that of the script's EXE name (i.e. ``script.exe``).
 
-When executed on the target computer, it will decompress itself in the $TEMP folder and then invoke ``script.exe``, passing any invocation arguments to it.
+When executed on the target computer, the installation file will first decompress itself into the user's ``$TEMP`` (environment variable) folder and then invoke the **original** ``script.exe``, passing any arguments to it.
 
-After ``script.exe`` finishes, it will again delete itself.
+After the Python program finishes, the folder will be deleted again from ``$TEMP``.
 
-There exist alternative options for using this file:
+Alternatively, you can do the following:
 
-* You can execute it with parameter ``/D=...`` specifying a directory of your choice. Logical candidates for this would be fast SSD or *ramdisk* locations. If specified, this parameter will **not** be passed through to ``script.exe``.
-* You can simply extract the ``dist`` folder from the file (using programs like ``WinZip`` or ``7zip``) and then deploy the resulting ``dist`` like any installation file.
+Execute the file with parameter ``/D=<folder>`` specifying a directory of your choice. The ``dist`` folder will then be decompressed into this folder and nothing else will happen.
