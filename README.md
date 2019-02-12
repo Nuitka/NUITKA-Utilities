@@ -124,4 +124,4 @@ After the Python program finishes, the folder will be deleted again from ``$TEMP
 
 Alternatively, you can do the following:
 
-Execute the file with parameter ``/D=<folder>`` specifying a directory of your choice. The ``dist`` folder will then be decompressed into this folder and nothing else will happen.
+Execute the file with parameter ``/D=<folder>`` specifying a directory of your choice. The ``dist`` folder will then be decompressed into ``<folder>`` and nothing else will happen.

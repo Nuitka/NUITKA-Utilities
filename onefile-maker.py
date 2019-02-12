@@ -71,6 +71,8 @@ OutFile "%s"
 InstallDir $TEMP
 RequestExecutionLevel user
 !include "LogicLib.nsh"
+!include "WordFunc.nsh"
+!include "FileFunc.nsh"
 SilentInstall silent
 SetCompressor LZMA
 Section ""
@@ -79,7 +81,8 @@ Section ""
 SectionEnd
 Function .onInstSuccess
   ${If} $INSTDIR == $TEMP
-    ExecWait '"$TEMP\\%s" $CMDLINE'
+    ${GetParameters} $R0
+    ExecWait '"$TEMP\\%s" $R0'
     RMDir /r "$TEMP\\%s"
   ${EndIf}
 FunctionEnd
