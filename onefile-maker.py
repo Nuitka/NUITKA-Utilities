@@ -32,7 +32,7 @@ When the installation file is executed, the dist folder is
 
 The following handling option is also available:
 
-Execute the distribution file with parameter '/D=...' by specifying a 
+Execute the distribution file with parameter '/D=...' by specifying a
 directory. This folder will then be used to store 'dist', and the original
 script will not be executed as part of the installation process.
 
@@ -45,25 +45,9 @@ Dependencies
 """
 import sys
 import os
-import io
 import time
 import subprocess as sp
-import PySimpleGUI as sg
-
-form = sg.FlexForm('OneFile Installer Creation')
-message = sg.Text("", size=(60,1))
-frm_dist = sg.InputText("", key="dist", do_not_clear=True)
-layout = [
-            [sg.Text("'dist' Folder:", size=(13,1)),
-             frm_dist,
-             sg.FolderBrowse(button_text="...")
-            ],
-            [sg.Text("OneFile name:", size=(13,1)),
-             sg.InputText("", key="1-file", do_not_clear=True),
-            ],
-            [message],
-            [sg.Submit(), sg.Cancel()]
-         ]
+import PySimpleGUI as psg
 
 nsi = """!verbose 0
 Name "%s"
@@ -93,37 +77,30 @@ makensis = r'"C:\Program Files (x86)\NSIS\makensis.exe"'
 # or just this if on path:
 makensis = '"makensis.exe" '
 
-form.Layout(layout)
-while 1:
-    btn, val = form.Show()
-    if btn in (None, "Cancel"):
-        raise SystemExit()
-    message.Update("")
-    dist = os.path.abspath(val["dist"])
-    if (not os.path.exists(dist) or
-        not os.path.isdir(dist)):
-        message.Update("'dist' does not exist / is no folder")
-        continue
-    l = os.listdir(dist)               # find the exe file in dist
-    for exe in l:
-        if exe.endswith(".exe"):
-            break
-    if not exe.endswith(".exe"):
-        message.Update("'dist' folder has no '.exe' file")
-        continue
-    if not val["1-file"]:
-        one_file = exe
-    else:
-        one_file = val["1-file"]
-    break
+try:
+    dist = sys.argv[1]
+except:
+    dist = psg.PopupGetFolder(
+        "Select a '.dist' folder:", "Make Nuitka Installation File"
+    )
 
-form.Close()
+dist = os.path.abspath(dist)
+if not os.path.isdir(dist) or not dist.endswith(".dist"):
+    raise SystemExit("'%s' is not a Nuitka dist folder" % dist)
 
-dist_base = os.path.basename(dist)     # basename of dist folder
-dist_dir = os.path.dirname(dist)       # directory part of dist
 
+dist_base = os.path.basename(dist)  # basename of dist folder
+dist_dir = os.path.dirname(dist)  # directory part of dist
+exe = dist_base.split(".")[0] + ".exe"
+one_file = exe
 # finalize installation script
-nsi_final = nsi % (dist_base, os.path.join(dist_dir, one_file), dist, os.path.join(dist_base, exe), dist_base)
+nsi_final = nsi % (
+    dist_base,
+    os.path.join(dist_dir, one_file),
+    dist,
+    os.path.join(dist_base, exe),
+    dist_base,
+)
 
 # put NSIS installation script to a file
 nsi_filename = dist + ".nsi"
@@ -134,12 +111,15 @@ nsi_file.close()
 t0 = time.time()
 rc = sp.Popen(makensis + nsi_filename, shell=True)
 
-print("\nNow executing", makensis,
-      "\nPlease wait, this may take some time.\n", sep_line)
+print(
+    "\nNow executing", makensis, "\nPlease wait, this may take some time.\n", sep_line
+)
 return_code = rc.wait()
 
 t1 = time.time()
-print(sep_line,
-      "\nOneFile generation return code:", return_code,
-      "\nDuration: %i sec." % int(round(t1-t0))
-     )
+print(
+    sep_line,
+    "\nOneFile generation return code:",
+    return_code,
+    "\nDuration: %i sec." % int(round(t1 - t0)),
+)
