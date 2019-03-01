@@ -19,6 +19,8 @@ A central folder to merge several binary `.dist` folders is no longer supported 
 ### Note 2
 If your program uses Tkinter, you **must check** the respective button. This requirement only exists on Windows platforms.
 
+> This script is no longer maintained. Please use ``exe-maker2.py`` instead - or even better: use the **user plugin** ``make-exe.py``, see below.
+
 -----
 ## upx-packer.py
 NUITKA binary output folders tend to have sizes in excess of 60 MB. While this is largely irrelevant if you continue to use the compiles on the original computer, it may become an issue when distributing stuff.
@@ -114,6 +116,8 @@ This is an advanced version of exe-maker. It supports the following features in 
 3. A new Nuitka plugin for ``numpy``. If your Numpy installation is not the *"vanilla"* version from PyPI, but includes acceleration libraries (like Intel's MKL, installations via [blis](https://pypi.org/project/blis/), OpenBlas, and similar), then you probably must request support for Numpy explicitely, similar to that for Qt and Tk.
 4. exe-maker2.py will actively avoid scanning for imported packages that are not checkmarked, and will delete any releated binaries from the ``dist`` folder.
 
+> This script is being phased out. Please use the user plugin ``make-exe.py`` below. It offers a seamless use and better integration with Nuitka.
+
 -----
 ## onefile-maker.py (working on Windows)
 Turns the ``dist`` folder of a standalone compiled script (e.g. ``script.py``) into an executable file, which can be distributed / handled like an installation file. Its name equals that of the script's EXE name (i.e. ``script.exe``).
@@ -125,3 +129,24 @@ After the Python program finishes, the folder will be deleted again from ``$TEMP
 Alternatively, you can do the following:
 
 Execute the file with parameter ``/D=<folder>`` specifying a directory of your choice. The ``dist`` folder will then be decompressed into ``<folder>`` and nothing else will happen.
+
+## make-exe.py
+This script is a Nuitka **user plugin**. It is intended to **replace** ``exe-maker.py`` and ``exe-maker2.py``, as it obsoletes the use of separate scripts to achieve the same results. In addition, it also works on Linux platforms (see comments below). This is how it is used:
+
+```
+python -m nuitka --standalone ... --user-profile=make-exe.py=options <yourscript.py>
+```
+
+The string ``"=options"`` following the script name is optional and can be used to pass options to the plugin. If used, it must consist of keyword strings separated by comma. The following are currently supported:
+
+* **qt, tk, np**: Activate / enable the respective standard plugin ``"qt-plugins"``, ``"tk-plugin"``, or ``"numpy-plugin"``. The option can be prefixed with ``"no"``. In this case, the corresponding plugin is disabled and recursing to certain modules / packages is suppressed. For example: ``"nonp"`` generates the options ``--recurse-not-to=numpy`` and ``--disable-plugin=numpy-plugin``.
+* **onefile**: After successfully compiling the script, create a software distribution file in "OneFile" format from the script's ``".dist"`` folder. This format is an executable file which, when executed, automatically decompresses itself into a temporary folder, and then invokes the binary excutable in it that corresponds to the compiled script.
+* **onedir**: Much like "OneFile", an executable file is created from the ``".dist"`` folder. But when executed on the target system, it decompresses its content into a specified folder and exits.
+* **upx**: After successful compilation, invoke the binary compression program UPX to compress the ``".dist"`` folder.
+
+Keywords ``onefile``, ``onedir`` and ``upx`` are mutually exclusive (other options can be combined). For each of these options, the plugin invokes the corresponding script for the platform, e.g. there exist different versions for Windows and Linux of the script ``onefile-maker.py``, etc.
+
+Example command:
+```
+python -m nuitka --standalone ... --user-plugin=make-exe.py=notk,qt,onefile <yourscript.py>
+```

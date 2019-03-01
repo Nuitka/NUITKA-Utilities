@@ -37,14 +37,14 @@ class MyExit(UserPluginBase):
         (b) option "onefile" for creating a distribution file in OneFile format, or
         (c) TODO: option "onedir" for creating a distribution file in OneDir format.
 
-        The names of standard plugins can also be added as special options to this
-        plugin. These will be enabled automatically, if they contain the string
-        "plugin". Depending on these choices, the following decisions are taken:
-        - missing "tk-plugin" and option "no-tk" lead to excluding some DLLs
-          and not recursing to PIL.ImageTk (pillow module)
-        - missing "qt-plugins" and option "no-qt" lead to not recursing to PIL.ImageQt
-          (pillow module)
-        - missing "numpy-plugin" and "no-numpy" lead to not recursing to "numpy"
+        The options for the standard plugins tk-plugin (code "tk"), numpy-plugin
+        ("np") and qt-plugins ("qt") can also be added as options to this plugin.
+        This will enable the respective plugin. If the code is prefixed with "no",
+        then the plugin will be disabled and certain modules will not be recursed
+        to. For example:
+        - "tk" will generate "--enable-plugin=tk-plugin"
+        - "notk" will generate "--disable-plugin=tk-plugin" and
+          "--recurse-not-to=PIL.ImageTk".
     """
 
     plugin_name = __file__
@@ -70,11 +70,9 @@ class MyExit(UserPluginBase):
 
         # get the list of options
         self.myoptions = self.getPluginOptions()
-        self.no_tk = "notk-plugin" in self.myoptions or "no-tk" in self.myoptions
-        self.no_qt = "noqt-plugins" in self.myoptions or "no-qt" in self.myoptions
-        self.no_numpy = (
-            "nonumpy-plugin" in self.myoptions or "no-numpy" in self.myoptions
-        )
+        self.tk = self.getPluginOptionBool("tk", None)
+        self.qt = self.getPluginOptionBool("qt", None)
+        self.numpy = self.getPluginOptionBool("np", None)
 
         # check for post processors
         self.onefile = 1 if self.getPluginOptionBool("onefile", False) else 0
@@ -82,34 +80,44 @@ class MyExit(UserPluginBase):
         self.upx = 1 if self.getPluginOptionBool("upx", False) else 0
 
         if self.onefile + self.onedir + self.upx > 1:
-            raise SystemExit("only 1 post-processing can be chosen")
+            raise SystemExit("only 1 post-processor can be chosen")
 
         # announce how we will execute
         msg = " '%s' established the following configuration" % self.plugin_name
         info(msg)
         info(self.sep_line2)
 
-        if self.no_numpy:
+        if self.numpy is False:
             options.recurse_not_modules.append("numpy")
             info(" --recurse-not-to=numpy")
+            options.plugins_disabled.append("numpy-plugin")
+            info(" --disable-plugin=numpy")
+        elif self.numpy is True:
+            options.plugins_enabled.append("numpy-plugin")
+            info(" --enable-plugin=numpy-plugin")
 
-        if self.no_qt:
+        if self.qt is False:
             options.recurse_not_modules.append("PIL.ImageQt")
             info(" --recurse-not-to=PIL.ImageQt")
+            options.plugins_disabled.append("qt-plugins")
+            info(" --disable-plugin=qt-plugins")
+        elif self.qt is True:
+            options.plugins_enabled.append("qt-plugins")
+            info(" --enable-plugin=qt-plugins")
 
-        if self.no_tk:
+        if self.tk is False:
             options.recurse_not_modules.append("PIL.ImageTk")
             info(" --recurse-not-to=PIL.ImageTk")
-
-        for plugin in self.myoptions:
-            if "plugin" in plugin and not plugin.startswith("no"):
-                options.plugins_enabled.append(plugin)
-                info(" --enable-plugin=%s" % plugin)
+            options.plugins_disabled.append("tk-plugin")
+            info(" --disable-plugin=tk-plugin")
+        elif self.tk is True:
+            options.plugins_enabled.append("tk-plugin")
+            info(" --enable-plugin=tk-plugin")
 
         info(self.sep_line2)
 
     def removeDllDependencies(self, dll_filename, dll_filenames):
-        if self.no_tk:
+        if self.tk is False:
             basename = os.path.basename(dll_filename)
             if basename.startswith(("tk", "tcl")):
                 info(" exluding " + basename)
