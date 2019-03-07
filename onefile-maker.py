@@ -109,7 +109,7 @@ nsi_file.write(nsi_final)
 nsi_file.close()
 
 t0 = time.time()
-rc = sp.Popen(makensis + nsi_filename, shell=True)
+rc = sp.Popen(makensis + " " + nsi_filename, shell=True)
 
 print(
     "\nNow executing", makensis, "\nPlease wait, this may take some time.\n", sep_line
