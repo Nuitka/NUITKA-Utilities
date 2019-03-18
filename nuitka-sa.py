@@ -17,8 +17,8 @@ for o in my_opts:
 new_sysargs.extend(sys.argv[1:])
 
 sys.argv = new_sysargs
-print("Invoking NUITKA with these options:")
-for o in sys.argv[1:]:
+print("NUITKA is compiling '%s' with these options:" % sys.argv[-1])
+for o in sys.argv[1:-1]:
     print(" " + o)
 print(" ")
 
