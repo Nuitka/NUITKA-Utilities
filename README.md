@@ -134,19 +134,25 @@ Execute the file with parameter ``/D=<folder>`` specifying a directory of your c
 This script is a Nuitka **user plugin**. It is intended to **replace** ``exe-maker.py`` and ``exe-maker2.py``, as it obsoletes the use of separate scripts to achieve the same results. In addition, it also works on Linux platforms (see comments below). This is how it is used:
 
 ```
-python -m nuitka --standalone ... --user-profile=make-exe.py=options <yourscript.py>
+python -m nuitka --standalone ... --user-plugin=make-exe.py=options <yourscript.py>
 ```
 
 The string ``"=options"`` following the script name is optional and can be used to pass options to the plugin. If used, it must consist of keyword strings separated by comma. The following are currently supported:
 
-* **qt, tk, np**: Activate / enable the respective standard plugin ``"qt-plugins"``, ``"tk-plugin"``, or ``"numpy-plugin"``. The option can be prefixed with ``"no"``. In this case, the corresponding plugin is disabled and recursing to certain modules / packages is suppressed. For example: ``"nonp"`` generates the options ``--recurse-not-to=numpy`` and ``--disable-plugin=numpy-plugin``.
+* **qt, tk, np**: Activate / enable the respective standard plugin ``"qt-plugins"``, ``"tk-plugin"``, or ``"numpy-plugin"``. The option can be prefixed with ``"no"``. In this case, the corresponding plugin is **disabled** and recursing to certain modules / packages is suppressed. For example: ``"nonp"`` generates the options ``--recurse-not-to=numpy`` and ``--disable-plugin=numpy-plugin``.
 * **onefile**: After successfully compiling the script, create a software distribution file in "OneFile" format from the script's ``".dist"`` folder. This format is an executable file which, when executed, automatically decompresses itself into a temporary folder, and then invokes the binary excutable in it that corresponds to the compiled script.
 * **onedir**: Much like "OneFile", an executable file is created from the ``".dist"`` folder. But when executed on the target system, it decompresses its content into a specified folder and exits.
 * **upx**: After successful compilation, invoke the binary compression program UPX to compress the ``".dist"`` folder.
 
 Keywords ``onefile``, ``onedir`` and ``upx`` are mutually exclusive (other options can be combined). For each of these options, the plugin invokes the corresponding script for the platform, e.g. there exist different versions for Windows and Linux of the script ``onefile-maker.py``, etc.
 
+> Please note that the downstream scripts (corresponding to onefile, onefile, upx) are still under development and not all of them are available on all platforms yet.
+
 Example command:
 ```
 python -m nuitka --standalone ... --user-plugin=make-exe.py=notk,qt,onefile <yourscript.py>
 ```
+
+> Although it obviously is handy to put the plugin script in the same folder as ``<yourscript.py>``, this is not required -  just add enough information to locate it as a normal file. This also applies to any downstream scripts (like for onefile option, etc.).
+
+> There is no general decision yet, how we want to distribute user plugins etc. with the main repository, if at all.
