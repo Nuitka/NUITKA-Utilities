@@ -156,3 +156,15 @@ python -m nuitka --standalone ... --user-plugin=make-exe.py=notk,qt,onefile <you
 > Although it obviously is handy to put the plugin script in the same folder as ``<yourscript.py>``, this is not required -  just add enough information to locate it as a normal file. This also applies to any downstream scripts (like for onefile option, etc.).
 
 > There is no general decision yet, how we want to distribute user plugins etc. with the main repository, if at all.
+
+
+## hints.zip
+Contains files to (1) examine and collect the imports of some application script, and (2) compile that script using this type of information.
+The overall goal is to prevent **everything** from going into a standalone program's `.dist` folder that is not actually needed.
+This is work in progress: please do use it and provide feedback!
+
+This is what you must do to use it:
+1. Execute ``python get-hints.py yourscript.py``. The script will be executed (via ``exec()``). Because this happens under the control of ``hints.py`` (which must be in the same folder), an intermediate file named ``yourscript.log`` will be created (and finally deleted again). ``get-hints.py`` will work through the log file and create file ``yourscript.json`` in the same folder. This contains all package / module names which the script issued during execution (only unique and sorted entries). Your script **must not** issue an ``exit()`` under normal execution, because we need control returning back for creating the JSON.
+2. Once you have a satisfactory JSON file for your script, you can compile it like this: ``python nuitka-hints.py yourscript.py``. Any required parameters are generated underway - including enabling numpy and or tkinter plugins. I am currently lacking similar other standard plugin support, so you should add them in the normal way before your script name. You also should have a look at the options contained in ``nuitka-hints.py`` - fat chance that you want to adjust some for your platform.
+
+If you intend to use ``scipy`` on Windows, please be aware that there still is plugin support missing. This package comes with some extra DLL undetectable by Nuitka, so a plugin must take care of it.
