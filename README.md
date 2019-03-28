@@ -159,12 +159,22 @@ python -m nuitka --standalone ... --user-plugin=make-exe.py=notk,qt,onefile <you
 
 
 ## hints.zip
-Contains files to (1) examine and collect the imports of some application script, and (2) compile that script using this type of information.
-The overall goal is to prevent **everything** from going into a standalone program's `.dist` folder that is not actually needed.
-This is work in progress: please do use it and provide feedback!
+This file contains 4 Python scripts, which collectively have the goal to create standalone compile distribution folders, which contain **no unneeded stuff**.
 
-This is what you must do to use it:
-1. Execute ``python get-hints.py yourscript.py``. The script will be executed (via ``exec()``). Because this happens under the control of ``hints.py`` (which must be in the same folder), an intermediate file named ``yourscript.log`` will be created (and finally deleted again). ``get-hints.py`` will work through the log file and create file ``yourscript.json`` in the same folder. This contains all package / module names which the script issued during execution (only unique and sorted entries). Your script **must not** issue an ``exit()`` under normal execution, because we need control returning back for creating the JSON.
-2. Once you have a satisfactory JSON file for your script, you can compile it like this: ``python nuitka-hints.py yourscript.py``. Any required parameters are generated underway - including enabling numpy and or tkinter plugins. I am currently lacking similar other standard plugin support, so you should add them in the normal way before your script name. You also should have a look at the options contained in ``nuitka-hints.py`` - fat chance that you want to adjust some for your platform.
+1. ``hints.py`` - a logger which intercepts and records every import statement made in a program.
+2. ``get-hints.py`` - a script which executes your test script under the control of ``hints.py``. When your script ends, it creates a consolidated ``yourscript.json`` file.
+3. ``hinted-mods.py`` - a Nuitka user plugin, which is used while your program gets compiled. It reads the JSON file from before and decides for each module or package, whether it should become part of the ``yourscript.dist`` folder.
+4. ``nuitka-hints.py`` - invokes the Nuitka compiler in standalone mode. It also passes a number of other command line options to it. Among those is the user plugin ``hinted-mods.py``.
 
-If you intend to use ``scipy`` on Windows, please be aware that there still is plugin support missing. This package comes with some extra DLL undetectable by Nuitka, so a plugin must take care of it.
+I invite you to use and test this little package. It is still work in progress - so please do provide feedback.
+
+1. Execute ``python get-hints.py yourscript.py``. Your script will be executed like normal in interpreter mode. But in the end, a protocol of all imported packages / modules has been created and put in file ``yourscript.json`` (same folder as ``yourscript.py``).
+2. Now compile your script like this: ``python nuitka-hints.py yourscript.py``. This is a standalone compile. It automatically generates all required parameters - including numpy or tkinter plugins. If you need other parameters, you can use them like normal (e.g. for using the Qt plugin).
+
+### Remarks
+* Look at the list of Nuitka options contained in ``nuitka-hints.py``. Chances are that you want to adjust them for your environment.
+* If you intend to use ``scipy`` on **Windows**, please be aware that there still is plugin support missing. The scipy package comes with some extra DLLs, which are undetectable by a compiler, so a plugin must take care of them (work in progress).
+* I am currently working on some improvements:
+    - include implicit imports in the JSON file (done - being tested)
+    - ad support for other standard plugins
+    - add ``scipy`` support
