@@ -158,23 +158,25 @@ python -m nuitka --standalone ... --user-plugin=make-exe.py=notk,qt,onefile <you
 > There is no general decision yet, how we want to distribute user plugins etc. with the main repository, if at all.
 
 
-## hints.zip
-This file contains 4 Python scripts, which collectively have the goal to create standalone compile distribution folders, which contain **no unneeded stuff**.
+## hints.zip (updated!)
+This file contains 4 Python scripts, which collectively have the **goal to create standalone compile distribution folders, which contain no unneeded stuff**.
 
-1. ``hints.py`` - a logger which intercepts and records every import statement made in a program.
-2. ``get-hints.py`` - a script which executes your test script under the control of ``hints.py``. When your script ends, it creates a consolidated ``yourscript.json`` file.
-3. ``hinted-mods.py`` - a Nuitka user plugin, which is used while your program gets compiled. It reads the JSON file from before and decides for each module or package, whether it should become part of the ``yourscript.dist`` folder.
-4. ``nuitka-hints.py`` - invokes the Nuitka compiler in standalone mode. It also passes a number of other command line options to it. Among those is the user plugin ``hinted-mods.py``.
+1. ``hints.py`` - a logger which intercepts and records every import statement that a program actually **_executes_** (as opposed to just **_contains_**).
+2. ``get-hints.py`` - a script which executes ``yourscript.py`` in **interpreter mode**, but under control of ``hints.py``. When your script ends, a consolidated ``yourscript.json`` file will be created containing all executed import statements.
+3. ``hinted-mods.py`` - a Nuitka **user plugin**, which is used while your script is being compiled by Nuitka. It reads the JSON file from before and decides for each module or package, whether it should go into the ``yourscript.dist`` folder. So this is responsible for making the difference **excuted vs. contained** imports.
+4. ``nuitka-hints.py`` - invokes the Nuitka compiler in standalone mode. It takes your command line options and a number of its own and passes them all to Nuitka. Among its own options is invoking the user plugin ``hinted-mods.py``.
 
-I invite you to use and test this little package. It is still work in progress - so please do provide feedback.
+I invite you to use and test this little package. It is still work in progress - so please do provide feedback. This is how it works:
 
 1. Execute ``python get-hints.py yourscript.py``. Your script will be executed like normal in interpreter mode. But in the end, a protocol of all imported packages / modules has been created and put in file ``yourscript.json`` (same folder as ``yourscript.py``).
-2. Now compile your script like this: ``python nuitka-hints.py yourscript.py``. This is a standalone compile. It automatically generates all required parameters - including numpy or tkinter plugins. If you need other parameters, you can use them like normal (e.g. for using the Qt plugin).
+2. Now compile your script like this: ``python nuitka-hints.py yourscript.py``. This is a standalone compile. It automatically generates all required parameters - including numpy, scipy, tkinter and Qt plugins. If you need other parameters, you can use them like normal.
 
 ### Remarks
 * Look at the list of Nuitka options contained in ``nuitka-hints.py``. Chances are that you want to adjust them for your environment.
-* If you intend to use ``scipy`` on **Windows**, please be aware that there still is plugin support missing. The scipy package comes with some extra DLLs, which are undetectable by a compiler, so a plugin must take care of them (work in progress).
-* I am currently working on some improvements:
-    - include implicit imports in the JSON file (done - being tested)
-    - ad support for other standard plugins
-    - add ``scipy`` support
+
+* Done: ~~If you intend to use ``scipy`` on **Windows**, please be aware that there still is plugin support missing. The scipy package comes with some extra DLLs, which are undetectable by a compiler, so a plugin must take care of them (work in progress).~~
+
+* Done:
+    - implicit imports are now supported
+    - support for other standard plugins (numpy, scipy, tkinter, Qt)
+
