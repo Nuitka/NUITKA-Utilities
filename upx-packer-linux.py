@@ -24,13 +24,16 @@ Usage : python upx-packer-linux.py path/to/the/folder
 For Unpacking
 Usage : python upx-packer-linux.py path/to/the/folder --decompress
 
-This script required the executable upx to be on your $PATH
+This script requires the executable upx to be on your $PATH
 """
 
 import os
 import subprocess as sp
 import argparse
 import time
+import sys
+
+from nuitka.utils.Execution import getExecutablePath
 
 parser = argparse.ArgumentParser(
     description="UPX-Packer of Nuitka for Linux")
@@ -49,18 +52,17 @@ args = parser.parse_args()
 args.dir = os.path.abspath(args.dir)
 
 sep_line = "".ljust(80, "-")
-try:
-    print(sep_line)
-    print("Checking availability of UPX\n", end="", flush=True)
-    rc = sp.call(("upx", "-Vq"), stdout = sp.PIPE)               
-    print("OK: UPX is available.")
-    print(sep_line)
-except:
-    raise SystemExit("UPX not installed or missing in path definition")
+print(sep_line)
+print("Checking for the availibility of UPX")
+upx_path = getExecutablePath("upx")
+
+if upx_path is None:
+    sys.exit("UPX not availible or missing in PATH definition")
+print("OK : UPX is availible")
+print(sep_line)
 
 if not os.path.exists(args.dir):
-    raise SystemExit("The path '{}' does not exist".format(args.dir))
-
+    sys.exit("The path '{}' does not exist".format(args.dir))
 
 file_count = 0
 file_sizes = {}
