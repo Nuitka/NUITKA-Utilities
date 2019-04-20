@@ -31,6 +31,8 @@ When your script finishes, the service script ``get-hints.py`` will collect the 
 
 Every time you change your script, please also re-execute the above command. This ensures, that any changes to imported modules are correctly reflected in the JSON file.
 
+See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compilation/get-hints.jpg) for a graphical overview of this process.
+
 ## Compilation
 For compilation, you need **all** of the following files again in the **same folder**:
 * ``yourscript.py`` - script created by you
@@ -52,6 +54,8 @@ Execute this command for other scripts:
 You should see quite a large number of information messages, which you can ignore. There may also be some warnings which you can ignore, too (hopefully).
 
 The duration of the compile will obviously vary with the size of your script and with the number of packages it uses. Using complex packages like ``pytorch``, ``sklearn``, ``numpy``, ``scipy`` and similar will cause compile times go up to several minutes.
+
+See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compilation/hinted-compile.jpg) for a graphical overview of this process.
 
 ## Testing the result
 Enter the folder ``yourscript.dist`` and execute the command
