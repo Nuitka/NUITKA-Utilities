@@ -1,27 +1,21 @@
 # NUITKA-Utilities
-A collection of scripts involving Python compilations with NUITKA
+A collection of scripts involving Python compilations with NUITKA.
 
 -------
-## exe-maker.py (currently tested on Windows)
+## exe-maker.py
 This script shows a GUI (using tkinter / [PySimpleGUI](https://github.com/MikeTheWatchGuy/PySimpleGUI)) to ask for a Python script name and then invokes NUITKA to generate a **standalone EXE** file from it.
 
 ### Features
 * sets a number of NUITKA default parameters
 * several configuration options
-* arbitrary additional NUITKA parameters
-* optional invocation of UPX packer for binary output
+* arbitrary additional Nuitka parameters
+* optional invocation of UPX packer for the created binary output folder
 * optional request to rebuild the dependency cache
-* experimental: button to remove unneeded binaries (**"skimming"**)
-
-### Note 1
-A central folder to merge several binary `.dist` folders is no longer supported by this script. Use `exe-merger.py` for this purpose - it contains all the required functiuonality.
-
-### Note 2
-If your program uses Tkinter, you **must check** the respective button. This requirement only exists on Windows platforms.
-
-> This script is no longer maintained. Please use ``exe-maker2.py`` instead - or even better: use the **user plugin** ``make-exe.py``, see below.
+* automatical use of the new dependency checker (based on [pefile](https://github.com/erocarrera/pefile)), which currently still is in experimental state. This feature uses a Python package to trace down binaries that are used by the script. Experience so far looks very promising - especially in terms of execution speed.
+* will actively suppress scanning packages that are not checkmarked.
 
 -----
+
 ## upx-packer.py
 NUITKA binary output folders tend to have sizes in excess of 60 MB. While this is largely irrelevant if you continue to use the compiles on the original computer, it may become an issue when distributing stuff.
 
@@ -107,50 +101,39 @@ Output folder default is the user desktop.
 Script runs under Windows only and requires packages ``pythoncom`` and ``win32com`` to be installed.
 
 -----
-## exe-maker2.py
-This is an advanced version of exe-maker. It supports the following features in addition:
+## onefile-maker-windows.py, onefile-maker-linux.py
+Turns the ``dist`` folder of a standalone compiled script into an executable file, which can be distributed and handled like an installation file. Its name equals that of the script's EXE name (``script.py`` -->  ``script.exe``).
 
-1. Automatical use of the new dependency checker (based on [pefile](https://github.com/erocarrera/pefile)), which currently still is in experimental state. This feature uses a Python package to trace down binaries that are used by the script. Experience so far looks very promising - especially in terms of execution speed.
-2. A new Nuitka plugin for ``Tkinter``. This obsoletes any special precautions by the programmer: The plugin will automatically copy Tkinter libraries and re-direct Tk requests to them.
-    > The tkinter plugin is only relevant for Windows and should not be used on other platforms. If used on non-Windows platforms it will de-activate itself and issue a warning.
-3. A new Nuitka plugin for ``numpy``. If your Numpy installation is not the *"vanilla"* version from PyPI, but includes acceleration libraries (like Intel's MKL, installations via [blis](https://pypi.org/project/blis/), OpenBlas, and similar), then you probably must request support for Numpy explicitely, similar to that for Qt and Tk.
-4. exe-maker2.py will actively avoid scanning for imported packages that are not checkmarked, and will delete any releated binaries from the ``dist`` folder.
+When executed on the target computer, the installation file will first decompress itself into the user's temporary folder and then invoke the **original** ``script.exe``, passing any arguments to it.
 
-> This script is being phased out. Please use the user plugin ``make-exe.py`` below. It offers a seamless use and better integration with Nuitka.
-
------
-## onefile-maker.py (working on Windows)
-Turns the ``dist`` folder of a standalone compiled script (e.g. ``script.py``) into an executable file, which can be distributed / handled like an installation file. Its name equals that of the script's EXE name (i.e. ``script.exe``).
-
-When executed on the target computer, the installation file will first decompress itself into the user's ``$TEMP`` (environment variable) folder and then invoke the **original** ``script.exe``, passing any arguments to it.
-
-After the Python program finishes, the folder will be deleted again from ``$TEMP``.
+After the Python program finishes, the folder will be deleted again from temporary storage.
 
 Alternatively, you can do the following:
 
 Execute the file with parameter ``/D=<folder>`` specifying a directory of your choice. The ``dist`` folder will then be decompressed into ``<folder>`` and nothing else will happen.
 
-## make-exe.py
-This script is a Nuitka **user plugin**. It is intended to **replace** ``exe-maker.py`` and ``exe-maker2.py``, as it obsoletes the use of separate scripts to achieve the same results. In addition, it also works on Linux platforms (see comments below). This is how it is used:
+## make-distribution.py
+This script is a Nuitka **user plugin**. It is intended to **replace** ``exe-maker.py`` as it obsoletes the use of separate scripts to achieve the same results. In addition, it also works on Linux platforms (see comments below). This is how it is used:
 
 ```
-python -m nuitka --standalone ... --user-plugin=make-exe.py=options <yourscript.py>
+python -m nuitka --standalone ... --user-plugin=make-distribution.py=options <yourscript.py>
 ```
 
 The string ``"=options"`` following the script name is optional and can be used to pass options to the plugin. If used, it must consist of keyword strings separated by comma. The following are currently supported:
 
-* **qt, tk, np**: Activate / enable the respective standard plugin ``"qt-plugins"``, ``"tk-plugin"``, or ``"numpy-plugin"``. The option can be prefixed with ``"no"``. In this case, the corresponding plugin is **disabled** and recursing to certain modules / packages is suppressed. For example: ``"nonp"`` generates the options ``--recurse-not-to=numpy`` and ``--disable-plugin=numpy-plugin``.
-* **onefile**: After successfully compiling the script, create a software distribution file in "OneFile" format from the script's ``".dist"`` folder. This format is an executable file which, when executed, automatically decompresses itself into a temporary folder, and then invokes the binary excutable in it that corresponds to the compiled script.
+* **qt, tk, np**: Activate / enable the respective standard plugin ``"qt-plugins"``, ``"tk-inter"``, or ``"numpy"``. The option can be prefixed with ``"no"``. In this case, the corresponding plugin is **disabled** and recursing to certain modules / packages is suppressed. For example: ``"nonp"`` generates the options ``--recurse-not-to=numpy`` and ``--disable-plugin=numpy-plugin``.
+* **onefile**: After successfully compiling the script, create a software distribution file in "OneFile" format from the script's ``".dist"`` folder. Depending on the platform, either ``onefile-maker- windows.py`` or ``onefile-maker-linux.py`` is invoked. See their descriptions above.
 * **onedir**: Much like "OneFile", an executable file is created from the ``".dist"`` folder. But when executed on the target system, it decompresses its content into a specified folder and exits.
 * **upx**: After successful compilation, invoke the binary compression program UPX to compress the ``".dist"`` folder.
 
-Keywords ``onefile``, ``onedir`` and ``upx`` are mutually exclusive (other options can be combined). For each of these options, the plugin invokes the corresponding script for the platform, e.g. there exist different versions for Windows and Linux of the script ``onefile-maker.py``, etc.
+Keywords ``onefile``, ``onedir`` and ``upx`` are mutually exclusive (other options can be combined). For each of these options, the plugin invokes the corresponding script for the platform.
 
-> Please note that the downstream scripts (corresponding to onefile, onefile, upx) are still under development and not all of them are available on all platforms yet.
+> Please note that some downstream scripts (corresponding to onefile, onefile, upx) are still under development and not all of them are available on all platforms yet.
 
-Example command:
+The following example command will create installation material in one-file format, deactivate tkinter and activate Qt support:
+
 ```
-python -m nuitka --standalone ... --user-plugin=make-exe.py=notk,qt,onefile <yourscript.py>
+python -m nuitka --standalone ... --user-plugin=make-distribution.py=notk,qt,onefile <yourscript.py>
 ```
 
 > Although it obviously is handy to put the plugin script in the same folder as ``<yourscript.py>``, this is not required -  just add enough information to locate it as a normal file. This also applies to any downstream scripts (like for onefile option, etc.).
@@ -158,25 +141,9 @@ python -m nuitka --standalone ... --user-plugin=make-exe.py=notk,qt,onefile <you
 > There is no general decision yet, how we want to distribute user plugins etc. with the main repository, if at all.
 
 
-## hints.zip (updated!)
-This file contains 4 Python scripts, which collectively have the **goal to create standalone compile distribution folders, which contain no unneeded stuff**.
+# Hinted Compilations
+There is a new directory in this repository dealing with this topic specifically.
 
-1. ``hints.py`` - a logger which intercepts and records every import statement that a program actually **_executes_** (as opposed to just **_contains_**).
-2. ``get-hints.py`` - a script which executes ``yourscript.py`` in **interpreter mode**, but under control of ``hints.py``. When your script ends, a consolidated ``yourscript.json`` file will be created containing all executed import statements.
-3. ``hinted-mods.py`` - a Nuitka **user plugin**, which is used while your script is being compiled by Nuitka. It reads the JSON file from before and decides for each module or package, whether it should go into the ``yourscript.dist`` folder. So this is responsible for making the difference **excuted vs. contained** imports.
-4. ``nuitka-hints.py`` - invokes the Nuitka compiler in standalone mode. It takes your command line options and a number of its own and passes them all to Nuitka. Among its own options is invoking the user plugin ``hinted-mods.py``.
+This feature has now reached a maturity level that can be recommended for general use with **standalone compilations**.
 
-I invite you to use and test this little package. It is still work in progress - so please do provide feedback. This is how it works:
-
-1. Execute ``python get-hints.py yourscript.py``. Your script will be executed like normal in interpreter mode. But in the end, a protocol of all imported packages / modules has been created and put in file ``yourscript.json`` (same folder as ``yourscript.py``).
-2. Now compile your script like this: ``python nuitka-hints.py yourscript.py``. This is a standalone compile. It automatically generates all required parameters - including numpy, scipy, tkinter and Qt plugins. If you need other parameters, you can use them like normal.
-
-### Remarks
-* Look at the list of Nuitka options contained in ``nuitka-hints.py``. Chances are that you want to adjust them for your environment.
-
-* Done: ~~If you intend to use ``scipy`` on **Windows**, please be aware that there still is plugin support missing. The scipy package comes with some extra DLLs, which are undetectable by a compiler, so a plugin must take care of them (work in progress).~~
-
-* Done:
-    - implicit imports are now supported
-    - support for other standard plugins (numpy, scipy, tkinter, Qt)
-
+Please checkout the readme in that directory.

@@ -90,11 +90,11 @@ class MyExit(UserPluginBase):
         if self.numpy is False:
             options.recurse_not_modules.append("numpy")
             info(" --recurse-not-to=numpy")
-            options.plugins_disabled.append("numpy-plugin")
+            options.plugins_disabled.append("numpy")
             info(" --disable-plugin=numpy")
         elif self.numpy is True:
-            options.plugins_enabled.append("numpy-plugin")
-            info(" --enable-plugin=numpy-plugin")
+            options.plugins_enabled.append("numpy")
+            info(" --enable-plugin=numpy")
 
         if self.qt is False:
             options.recurse_not_modules.append("PIL.ImageQt")
@@ -108,11 +108,11 @@ class MyExit(UserPluginBase):
         if self.tk is False:
             options.recurse_not_modules.append("PIL.ImageTk")
             info(" --recurse-not-to=PIL.ImageTk")
-            options.plugins_disabled.append("tk-plugin")
-            info(" --disable-plugin=tk-plugin")
+            options.plugins_disabled.append("tk-inter")
+            info(" --disable-plugin=tk-inter")
         elif self.tk is True:
-            options.plugins_enabled.append("tk-plugin")
-            info(" --enable-plugin=tk-plugin")
+            options.plugins_enabled.append("tk-inter")
+            info(" --enable-plugin=tk-inter")
 
         info(self.sep_line2)
 
