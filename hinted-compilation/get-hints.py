@@ -362,7 +362,7 @@ invoker_file.close()
 if os.path.exists(lname):  # remove any old logfile
     os.remove(lname)
 
-new_argv = ["python", "hint-exec.py"] + sys.argv[2:]
+new_argv = [sys.executable, "hint-exec.py"] + sys.argv[2:]
 rc = subprocess.call(new_argv)
 
 myexit(lname, False)  # transform logfile to JSON file

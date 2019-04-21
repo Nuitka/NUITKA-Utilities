@@ -3,14 +3,14 @@ This is a description focussing on things that must be done - without providing 
 
 All steps explained in the following must be done **exactly** as described.
 
-This text is based on experience made on the Windows 10 platform. Doing similar things on Linux or Mac OSX may require changes - allthough hopefully most of this can be adopted in an obvious way - or even used unchanged. Contributing to these support areas would be most welcome.
+The following has been tested on Windows and Linux (Ubuntu). With some easy changes, a successful use on other platforms shoudl be achievable.
 
 ------
 ## Prerequisites
 
 * Your script must work in interpreted mode. Syntax errors will cause exceptions during the compile. And of course any required packages must have been installed.
 
-* Nuitka must have been installed. Use the current **development** version. We will need several support aspects, that are not yet part of the regular release, like:
+* Nuitka must have been installed. Use the version 0.6.3 or later. We will need several support aspects, that are not part of earlier releases, like:
     - availability of experimental feature ``pefile``
     - numpy plugin must be available under its new name ``numpy``
     - Tkinter plugin must be available under its new name ``tk-inter``
@@ -41,7 +41,7 @@ For compilation, you need **all** of the following files again in the **same fol
 * ``yourscript.py`` - script created by you
 * ``yourscript.json`` - file created in previous step
 * ``torch-plugin.py`` - for **_pytorch_** scripts only, file in this directory
-* ``nuitka-hints.py`` - file in this directory
+* ``nuitka-hints.py`` - file in this directory (Linux: ``nuitka-hints-linux.py``)
 * ``hinted-mods.py`` - file in this directory
 
 Execute the following command to compile your **_pytorch_** script:
@@ -97,4 +97,4 @@ If you have created ``yourscript.json`` with the method above, the same result c
 ```
 python nuitka-hints.py yourscript.py
 ```
-User plugin ``hinted-mods.py`` detects that Numpy, SciPy and PyQt are required by the script and enables the corresponding plugins
+User plugin ``hinted-mods.py`` detects that Numpy, SciPy and PyQt are required by the script and enables the corresponding plugins.
