@@ -3,17 +3,19 @@ This is a description focussing on things that must be done - without providing 
 
 All steps explained in the following must be done **exactly** as described.
 
-This text is based on experience made on a Windows 10 platform. Doing a similar thing on different platforms like Linux or Mac OSX will require changes - allthough hopefully much of this can be adopted in an obvious way.
+This text is based on experience made on the Windows 10 platform. Doing similar things on Linux or Mac OSX may require changes - allthough hopefully most of this can be adopted in an obvious way - or even used unchanged. Contributing to these support areas would be most welcome.
 
+------
 ## Prerequisites
 
-* Your script must work in interpreted mode. Syntax errors will cause exceptions in the compile.
+* Your script must work in interpreted mode. Syntax errors will cause exceptions during the compile. And of course any required packages must have been installed.
 
 * Nuitka must have been installed. Use the current **development** version. We will need several support aspects, that are not yet part of the regular release, like:
     - availability of experimental feature ``pefile``
     - numpy plugin must be available under its new name ``numpy``
     - Tkinter plugin must be available under its new name ``tk-inter``
 
+------
 ## Preparation
 Before you actually can compile your script, it must be executed in a way that traces and records all Python ``import`` statements.
 
@@ -33,6 +35,7 @@ Every time you change your script, please also re-execute the above command. Thi
 
 See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compilation/get-hints.jpg) for a graphical overview of this process.
 
+------
 ## Compilation
 For compilation, you need **all** of the following files again in the **same folder**:
 * ``yourscript.py`` - script created by you
@@ -57,6 +60,7 @@ The duration of the compile will obviously vary with the size of your script and
 
 See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compilation/hinted-compile.jpg) for a graphical overview of this process.
 
+------
 ## Testing the result
 Enter the folder ``yourscript.dist`` and execute the command
 
@@ -66,24 +70,31 @@ You should get the same result as in interpreted mode.
 
 **_Important_**: you must type the complete name ``yourscript.exe`` - **including the** ``.exe`` **suffix!** If you don't do this, your script may fail if it uses multiprocessing features. This restriction in the current (0.6.3) development version will be lifted in one of the next releases.
 
+------
 ## Remarks
 We recommend using this feature to do all your standalone compiles. The benefits are:
 
-* shorter compile times: because it is known which parts of which packages your program actually uses, the compiler will only process those and ignore others that are also contained somewhere in the code.
-* smaller ``dist`` folders, because unused code will not become a part of it.
-* shorter command line: the invoker script ``nuitka-hints.py`` has a list of options which it passes to the Nuitka compiler. It cooperates with ``hinted-mods.py`` (a user plugin which it automatically activates) to **dynamically enable** any other of the standard plugins as required. It also automatically switches off the console window, it your script ends with ``.pyw``. If you need different options for your installation, just edit ``nuitka-hints.py`` and change the options list.
+* **shorter compile times**: because it is known which parts of which packages your program actually uses, the compiler will only process those and ignore others that are also contained somewhere in the code.
+* **smaller** ``dist`` **folder**, because unused code will not become a part of it.
+* **shorter command line**: the invoker script ``nuitka-hints.py`` has a list of options which it passes to the Nuitka compiler. It also automatically turns off the console window, if your script ends with ``.pyw``. It enables user plugin ``hinted-mods.py`` which in turn **dynamically enables** required standard plugins.
+* If you need different standard compile options for your installation, just edit ``nuitka-hints.py`` and change its options list.
+* You can also specify any of the command line options known by nuitka itself.
 
-Assuming that your script uses PyQt, numpy and scipy, the normal command line will look like this:
+------
+## Example
+Let us assume that your script uses PyQt, Numpy and Scipy.
+
+Then the normal standalone command line will look like this:
 
 ```
 python -m nuitka --standalone --python-flag=nosite --enable-plugin=numpy=scipy --enable-plugin=qt-plugins yourscript.py
 ```
 
-Even more options may be needed to reflect your compiler choice and what not.
+Or even more options may be needed to reflect your compiler choice and what not.
 
-If you have created ``yourscript.json`` with the method above, the same result can be achieved with the following command line (but probably quicker and with a smaller ``dist`` folder):
+If you have created ``yourscript.json`` with the method above, the same result can be achieved with the following short command line (and probably in shorter compile time and with a smaller ``dist`` folder):
 
 ```
 python nuitka-hints.py yourscript.py
 ```
-All of the above options have been generated.
+User plugin ``hinted-mods.py`` detects that Numpy, SciPy and PyQt are required by the script and enables the corresponding plugins
