@@ -31,23 +31,24 @@ from nuitka.__main__ import main
 
 my_opts = [
     "--standalone",  # the purpose of this script
-    "--mingw64",  # change this as required
     "--python-flag=nosite",  # change this if needed
     "--remove-output",  # delete this if you want
     "--experimental=use_pefile",  # will become standard soon
-    "--disable-dll-dependency-cache",  # at your discretion ...
 ]
+
+if sys.platform == "win32":
+    my_opts.append("--mingw64")  # change this as required
+    my_opts.append("--disable-dll-dependency-cache")  # at your discretion ...
 
 script = sys.argv[-1]  # name of script to be compiled
 if not os.path.exists(script):
     raise ValueError("No such file: " + script)
-if script.endswith(".py"):
-    json_fname = script[:-2] + "json"
-elif script.endswith(".pyw"):
-    json_fname = script[:-3] + "json"
+
+filename, extname = os.path.splitext(script)
+json_fname = filename + ".json"
+
+if extname.lower() == ".pyw":
     my_opts.append("--windows-disable-console")
-else:
-    json_fname = None
 
 if not os.path.exists(json_fname):
     raise ValueError("No such file: " + json_fname)

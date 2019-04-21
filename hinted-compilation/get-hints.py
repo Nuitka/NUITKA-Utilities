@@ -35,6 +35,8 @@ import io
 import json
 import subprocess
 
+line_number = 0
+
 
 def reader(f):
     """ Read and pre-process the output from hints.py.
@@ -45,8 +47,10 @@ def reader(f):
     Returns:
         A list with layout depending on record type.
     """
+    global line_number
     text = "\n"
     while text == "\n":  # multiprocessing scripts may create empty lines
+        line_number += 1
         text = f.readline()
 
     if text == "":  # end of file
@@ -55,6 +59,10 @@ def reader(f):
     text = text[:-1]  # remove line break char
 
     tt = text.split(";")
+    if len(tt) < 3:
+        print("invalid record %i %s" % (line_number, text))
+        print("results in tt:", tt)
+        sys.exit("cancelling")
 
     level = int(tt[0])  # nesting level
     type = tt[1]  # one of CALLED, RESULT or EXCEPTION
@@ -83,6 +91,8 @@ def reader(f):
                 implist = json.loads(implist)
             except:
                 print("JSON problem:", implist)
+                print("line:", line_number)
+                print("tt:", tt)
                 raise
 
         olist = [level, type, CALLED, implist]
@@ -105,6 +115,7 @@ def call_analyzer(f, call_list, call_file, trace_logic):
     Returns:
         No direct returns, the output will be written to call_file.
     """
+    global line_number
 
     def write_mod(t):
         call_file.write(t + "\n")
@@ -119,7 +130,12 @@ def call_analyzer(f, call_list, call_file, trace_logic):
     text = reader(f)  # read next record
 
     if not bool(text):  # EOF should not happen here!
-        sys.exit("unexpected EOF at %s" % str(call_list))
+        print("unexpected EOF at %s" % str(call_list))
+        sys.exit("at line number", line_number)
+
+    if len(text) < 3:
+        print("unexpected record format", text)
+        sys.exit("at line number", line_number)
 
     while text[1] == "CALL":  # any more CALL records will be recursed into
         call_analyzer(f, text, call_file, trace_logic)
@@ -227,8 +243,6 @@ def myexit(lname, trace_logic):
     jsonfile.write(json.dumps(netto_calls))
     jsonfile.close()
 
-    os.remove(lname)  # remove the script's logfile
-
 
 # -----------------------------------------------------------------------------
 # Main program
@@ -237,8 +251,9 @@ ifname = sys.argv[1]  # read name of to-be-traced script
 if not bool(ifname) or not os.path.exists(ifname):
     sys.exit("no valid Python script provided")
 
-jname = ifname[:-2] + "json"  # store hinted modules here
-lname = ifname[:-2] + "log"  # logfile name for the script
+scriptname, extname = os.path.splitext(ifname)
+jname = scriptname + ".json"  # store hinted modules here
+lname = scriptname + ".log"  # logfile name for the script
 
 # This text is executed. It activates the hinting logic and excutes the
 # script via exec(script).
@@ -247,7 +262,7 @@ import sys, os
 original_import = __import__
 
 _indentation = 0
-_output = sys.stdout
+hints_logfile = sys.stdout
 
 
 def _normalizePath(path):
@@ -298,7 +313,7 @@ def enableImportTracing(normalize_paths=True, show_source=False):
         try:
             _indentation += 1
 
-            print("%i;CALL;%s;%s" % (_indentation, name, fromlist), file=_output)
+            print("%i;CALL;%s;%s" % (_indentation, name, fromlist), file=hints_logfile, flush=True)
 
             for entry in traceback.extract_stack()[:-1]:
                 if entry[2] == "_ourimport":
@@ -317,13 +332,13 @@ def enableImportTracing(normalize_paths=True, show_source=False):
             try:
                 result = original_import(name, globals, locals, fromlist, level)
             except ImportError as e:
-                print("%i;EXCEPTION;%s" % (_indentation, e), file=_output)
+                print("%i;EXCEPTION;%s" % (_indentation, e), file=hints_logfile, flush=True)
                 raise
             finally:
                 builtins.__import__ = original_import
 
             m = _moduleRepr(result)
-            print("%i;RESULT;%s;%s" % (_indentation, m[0], m[1]), file=_output)
+            print("%i;RESULT;%s;%s" % (_indentation, m[0], m[1]), file=hints_logfile, flush=True)
 
             builtins.__import__ = _ourimport
 
@@ -340,17 +355,18 @@ def enableImportTracing(normalize_paths=True, show_source=False):
 
     builtins.__import__ = _ourimport
 
-module = "&module"
-lname = "&lname"
-logfile = open(lname, "a")  # open the script to trace
-_output = logfile
-source = open(module).read()
+scriptname = "&scriptname"
+extname = "&extname"
+lname = "%s-%i.log" % (scriptname, os.getpid())
+logfile = open(lname, "w", buffering=1)
+hints_logfile = logfile
+source = open(scriptname + extname).read()
 enableImportTracing()
 exec(source)
 """.replace(
-    "&module", ifname
+    "&scriptname", scriptname
 ).replace(
-    "&lname", lname
+    "&extname", extname
 )
 
 hinter_script = "hint-exec.py"
@@ -362,9 +378,34 @@ invoker_file.close()
 if os.path.exists(lname):  # remove any old logfile
     os.remove(lname)
 
-new_argv = [sys.executable, "hint-exec.py"] + sys.argv[2:]
+python_exe = sys.executable
+if extname == ".pyw":
+    python_exe = python_exe.replace("python.exe", "pythonw.exe")
+
+new_argv = [python_exe, "hint-exec.py"] + sys.argv[2:]
 rc = subprocess.call(new_argv)
+
+# multiple logfiles may have been created - we join them into a single one
+log_files = os.listdir()  # list of created logfiles
+logfile = open(lname, "w")  # the final logfile
+
+for logname in log_files:
+    # select the right files and concatenate them
+    if not (logname.startswith(scriptname + "-") or logname.endswith(".log")):
+        continue  # this file is not for us
+    lfile = open(logname)
+    while True:
+        line = lfile.readline()
+        if line == "":
+            break
+        logfile.writelines(line)
+    lfile.close()
+    os.remove(logname)
+
+logfile.close()
 
 myexit(lname, False)  # transform logfile to JSON file
 
-os.remove(hinter_script)
+os.remove(lname)  # remove the script's logfile
+os.remove(hinter_script)  # remove stub file
+

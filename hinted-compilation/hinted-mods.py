@@ -97,7 +97,7 @@ class Usr_Plugin(UserPluginBase):
         Currently supported: "tk-inter", "numpy", "multiprocessing" and
         "qt-plugins". For "numpy", we also support the "scipy" option.
         """
-        tk = np = qt = sc = mp = False
+        tk = np = qt = sc = mp = pmw = False
         msg = " Enabling the following plugins:"
         for m in self.modules:  # scan thru called items
             if m == "numpy":
@@ -110,6 +110,8 @@ class Usr_Plugin(UserPluginBase):
                 sc = True
             elif m == "multiprocessing":
                 mp = True
+            elif m == "Pmw":
+                pmw = True
 
         if any((tk, np, sc, qt, mp)):
             info(msg)
@@ -130,6 +132,10 @@ class Usr_Plugin(UserPluginBase):
         if mp:
             options.plugins_enabled.append("multiprocessing")
             info(" --enable-plugin=multiprocessing")
+
+        if pmw:
+            options.plugins_enabled.append("pmw-freezer")
+            info(" --enable-plugin=pmw-freezer")
 
         return None
 
@@ -212,11 +218,14 @@ class Usr_Plugin(UserPluginBase):
                     self.implicit_imports.append(full_name)
 
         if full_name in self.implicit_imports:
-            # full_name is acceptable for someone else
+            # full_name accepted by someone else
             info(" implicit: " + full_name)
             return None  # ok
 
-        ignore_msg = " ignoring %s (%s)" % (module_name, module_package)
+        if module_package is not None:
+            ignore_msg = " ignoring %s (%s)" % (module_name, module_package)
+        else:
+            ignore_msg = " ignoring %s" % module_name
         info(ignore_msg)  # issue ignore message
         self.ignored_modules.append(full_name)  # faster decision next time
         return False, "module is not used"
