@@ -97,8 +97,8 @@ class Usr_Plugin(UserPluginBase):
         Currently supported: "tk-inter", "numpy", "multiprocessing" and
         "qt-plugins". For "numpy", we also support the "scipy" option.
         """
-        tk = np = qt = sc = mp = pmw = False
-        msg = " Enabling the following plugins:"
+        tk = np = qt = sc = mp = pmw = torch = sklearn = False
+        msg = " '%s' is adding the following options:" % self.plugin_name
         for m in self.modules:  # scan thru called items
             if m == "numpy":
                 np = True
@@ -112,9 +112,15 @@ class Usr_Plugin(UserPluginBase):
                 mp = True
             elif m == "Pmw":
                 pmw = True
+            elif m == "torch":
+                torch = True
+            elif m == "sklearn":
+                sklearn = True
 
-        if any((tk, np, sc, qt, mp)):
-            info(msg)
+        if not any((tk, np, sc, qt, mp, pmw, torch, sklearn)):
+            return None
+
+        info(msg)
 
         if np:
             o = "numpy" if not sc else "numpy=scipy"
@@ -137,6 +143,15 @@ class Usr_Plugin(UserPluginBase):
             options.plugins_enabled.append("pmw-freezer")
             info(" --enable-plugin=pmw-freezer")
 
+        if torch:
+            # options.plugins_enabled.append("torch")
+            info(" --enable-plugin=torch (not in Nuitka yet)")
+
+        if sklearn:
+            # options.plugins_enabled.append("sklearn")
+            info(" --enable-plugin=sklearn (not in Nuitka yet)")
+
+        info("")
         return None
 
     def onModuleEncounter(
@@ -171,6 +186,10 @@ class Usr_Plugin(UserPluginBase):
                 t = module_name[len(module_package) :]
                 if t.startswith("."):
                     full_name = module_name
+            # also happens: package = a.b.c.module
+            # then use package as full_name
+            elif module_package.endswith(module_name):
+                full_name = module_package
         else:
             full_name = module_name
 
@@ -190,7 +209,7 @@ class Usr_Plugin(UserPluginBase):
                 return None  # ok
 
         """
-        We have a dubious case here:
+        We are having a dubious case now:
         Check if full_name is one of the implicit imports.
         Expensive logic, but can only happen once per module.
         Scan through all modules identified by Nuitka and ask each active
@@ -219,13 +238,13 @@ class Usr_Plugin(UserPluginBase):
 
         if full_name in self.implicit_imports:
             # full_name accepted by someone else
-            info(" implicit: " + full_name)
+            info(" keep " + full_name)
             return None  # ok
 
         if module_package is not None:
-            ignore_msg = " ignoring %s (%s)" % (module_name, module_package)
+            ignore_msg = " drop %s (in %s)" % (module_name, module_package)
         else:
-            ignore_msg = " ignoring %s" % module_name
+            ignore_msg = " drop %s" % module_name
         info(ignore_msg)  # issue ignore message
         self.ignored_modules.append(full_name)  # faster decision next time
         return False, "module is not used"

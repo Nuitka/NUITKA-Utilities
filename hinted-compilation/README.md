@@ -105,3 +105,4 @@ User plugin ``hinted-mods.py`` detects that Numpy, SciPy and PyQt are required b
 > * qt-plugins
 > * multiprocessing
 > * pmw-freezer
+> * torch and sklearn are developed and ready to be included in the next Nuitka version.

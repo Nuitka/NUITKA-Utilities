@@ -27,6 +27,7 @@ modules in the distribution folder.
 import sys
 import os
 import json
+import platform
 from nuitka.__main__ import main
 
 my_opts = [
@@ -45,7 +46,14 @@ if not os.path.exists(script):
     raise ValueError("No such file: " + script)
 
 filename, extname = os.path.splitext(script)
-json_fname = filename + ".json"
+json_fname = "%s-%i.%i.%i-%s-%s.json" % (
+    filename,
+    sys.version_info.major,
+    sys.version_info.minor,
+    sys.version_info.micro,
+    sys.platform,
+    platform.architecture()[0][:2],
+)
 
 if extname.lower() == ".pyw":
     my_opts.append("--windows-disable-console")
