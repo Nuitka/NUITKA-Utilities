@@ -23,9 +23,9 @@ Currently, there is a user plugin which - based on this log file - controls the
 inclusion of modules during Nuitka standalone compile mode.
 
 The logfile creation is done within a separate process. The script to be traced
-is wrapped by "hinter" logic (based on Kay Hayen's hints.py, see ), which
+is wrapped by "hinter" logic (based on Kay Hayen's hints.py, see https://github.com/Nuitka/Nuitka/blob/develop/lib/hints.py), which
 logs every import statement issued by the script. After end of the subprocess,
-the logfile is interpreted, reduced to unique entries and then stored as a list
+the logfile is interpreted, reduced to unique entries and then stored as a dict
 in JSON format.
 """
 
@@ -35,6 +35,7 @@ import platform
 import io
 import json
 import subprocess
+from operator import itemgetter
 
 line_number = 0  # global variable for tracing purposes
 
@@ -46,7 +47,7 @@ def reader(f):
         f: the logfile created by hints.py
 
     Returns:
-        A list with layout that depends on the 3 record types:
+        A list with a layout which depends on the 3 record types:
         1: [level, "CALL", called-item, list]
         2: [level, "RESULT", module, module-file]
         3: [level, "EXCEPTION", exception]
@@ -108,7 +109,7 @@ def reader(f):
     return olist
 
 
-def call_analyzer(f, call_list, call_file, trace_logic):
+def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
     """ Analyze the call hierarchy to determine valid called names.
 
     Notes:
@@ -120,17 +121,53 @@ def call_analyzer(f, call_list, call_file, trace_logic):
     Args:
         f: file to read from (created by the script wrapped in hinting logic)
         call_list: list representing a CALL record
-        call_file: output file to receive computed import names
+        import_calls: list to receive computed import names
+        import_files: list to receive imported files
         trace_logic: bool to switch on tracing the logic
     Returns:
         No direct returns, output will be written to call_file.
     """
     global line_number
 
-    def write_mod(t):
-        call_file.write(t + u"\n")
+    def normalize_file(t):
+        # step 1: remove any platform tags from shared libraries
+        folder = os.path.dirname(t)  # folder part
+        datei = os.path.basename(t)  # filename
+        _, ext = os.path.splitext(datei)  # extension
+        if ext in (".pyd", ".so"):  # shared library?
+            datei_arr = datei.split(".")  # split
+            if len(datei_arr) > 2:  # platform tag present?
+                datei = ".".join(datei_arr[:-2])  # yes, omit
+            else:
+                datei = ".".join(datei_arr[:-1])  # just omit ext
+
+        t = os.path.join(folder, datei)  # rebuild filename for step 2
+
+        # step 2: turn slashes into '.', remove __init__.py and extensions
+        t = t.replace("\\", ".").replace("/", ".").replace("$PYTHONPATH.", "")
+        if t.endswith(".__init__.py"):
+            t = t[:-12]
+            return t
+
+        if t.endswith(".py"):
+            t = t[:-3]
+            return t
+
+        if not ext in (".pyd", ".so"):
+            sys.exit("found unknown Python module type '%s'" % t)
+
+        return t
+
+    def write_mod(t, f):  # write a call entry
+        import_calls.append((t, f))
         if trace_logic:
-            print(line_number, ":", t)
+            print(line_number, "call:", t)
+        return
+
+    def write_file(t):  # write a file entry
+        import_files.append(t)
+        if trace_logic:
+            print(line_number, "file:", t)
         return
 
     level = call_list[0]  # nesting level
@@ -148,7 +185,7 @@ def call_analyzer(f, call_list, call_file, trace_logic):
         sys.exit("at line number %i" % line_number)
 
     while text[1] == "CALL":  # any CALL records will be recursed into
-        call_analyzer(f, text, call_file, trace_logic)
+        call_analyzer(f, text, import_calls, import_files, trace_logic)
         text = reader(f)
 
     if text[0] != level:  # this record must have our level!
@@ -166,17 +203,34 @@ def call_analyzer(f, call_list, call_file, trace_logic):
     if res_file == "built-in":  # skip output for built-in stuff
         return
 
+    if RESULT == "__main__":
+        return
+
+    if res_file.endswith(".dll"):  # special handling for pythoncom and friends
+        res_file = RESULT + ".py"
+
+    if RESULT.startswith("win32com"):  # special handling for win32com
+        res_file = "$PYTHONPATH\\win32com\\__init__.py"
+
     if trace_logic:
         print(line_number, ":", str(call_list))
         print(line_number, ":", str(text))
 
-    write_mod(RESULT)  # this is a sure output
+    normalized_file = normalize_file(res_file)
+    write_file(normalized_file)
+
+    write_mod(RESULT, normalized_file)  # this is a sure output
+
+    # members of shared modules cannot be filtered out, so allow them all
+    if not res_file.endswith((".py", ".pyw")):  # must be a shared module
+        write_mod(RESULT + ".*", normalized_file)
+        return
 
     if not CALLED:  # case: the CALL name is empty
         if not implist:  # should not happen, but let's ignore this
             return
         for item in implist:  # return RESULT.item for items in list
-            write_mod(RESULT + "." + item)
+            write_mod(RESULT + "." + item, normalized_file)
         return
 
     if (
@@ -187,7 +241,7 @@ def call_analyzer(f, call_list, call_file, trace_logic):
         # CALL and RESULT names contain each other in some way
         if not implist:
             if CALLED != RESULT:
-                write_mod(CALLED)
+                write_mod(CALLED, normalized_file)
             return
         if CALLED == RESULT:
             cmod = CALLED
@@ -197,8 +251,8 @@ def call_analyzer(f, call_list, call_file, trace_logic):
             cmod = RESULT
         else:
             cmod = CALLED
-        for item in implist:  # it is a list of items
-            write_mod(cmod + "." + item)
+        for item in implist:  # this is a list of items
+            write_mod(cmod + "." + item, normalized_file)
         return
 
     """ Case:
@@ -206,12 +260,39 @@ def call_analyzer(f, call_list, call_file, trace_logic):
     We then assume that the true call name should be RESULT.CALLED in output.
     """
     cmod = RESULT + "." + CALLED  # equals RESULT.CALLED
-    write_mod(cmod)  # output it
+    write_mod(cmod, normalized_file)  # output it
     if not implist:  # no list there: finished
         return
     for item in implist:  # or again a list of items
-        write_mod(cmod + "." + item)
+        write_mod(cmod + "." + item, normalized_file)
     return
+
+
+def clean_json(netto_calls):
+    """ Remove tautological entries in the hinted imports list.
+
+    Notes:
+        The input list must sorted. Whenever an entry ending with ".*" is
+        found, subsequent entries starting with the same string (excluding the
+        asterisk) are skipped. Also cross-check against imported files to
+        filter out items that are not callable.
+        This approach leads to a much smaller array of accepted imports,
+        and thus faster checks.
+    """
+
+    # step 1: remove items already included via a *-import
+    list_out = []  # intermediate list
+    last_item = None  # store 'a.b.c.' here, if 'a.b.c.*' is found
+
+    for x in netto_calls:
+        if last_item and x[0].startswith(last_item):  # included in a "*" import?
+            continue  # skip it
+        list_out.append(x)  # else keep it
+        if x[0].endswith(".*"):  # another *-import?
+            last_item = x[0][:-1]  # refresh pattern
+
+    print("Call cleaning has removed %i items." % (len(netto_calls) - len(list_out)))
+    return list_out
 
 
 def myexit(lname, jname, trace_logic):
@@ -223,26 +304,33 @@ def myexit(lname, jname, trace_logic):
     """
 
     ifile = open(lname)  # open the script's logfile
-    ofile = io.StringIO()  # intermediate storage for json output
+    import_calls = []  # intermediate storage for json output
+    import_files = []  # intermediate storage for json output 2
 
     while 1:  # read the logfile
         text = reader(ifile)
         if not bool(text):
             break
-        call_analyzer(ifile, text, ofile, trace_logic)
+        call_analyzer(ifile, text, import_calls, import_files, trace_logic)
 
     ifile.close()
 
-    # read intermediate storage and split to single items
-    all_calls = ofile.getvalue().split("\n")
+    # make a list of all files that were referenced by an import
+    netto_files = sorted(list(set(import_files)))
 
-    netto_calls = sorted(list(set(all_calls)))  # reduce to sorted unique names
-    # and store everything as an array using a JSON file
-    if netto_calls[0] == "":  # remove the pesky null string
-        del netto_calls[0]
+    # make a list of all items that were referenced by an import
+    netto_calls = sorted(
+        list(set(import_calls)), key=itemgetter(0)
+    )  # reduce to sorted unique names
+
+    # remove items that are not meaningful or contribute nothing to the
+    # compiled material
+    cleaned_list = clean_json(netto_calls)
+
+    js_dict = {"calls": cleaned_list, "files": netto_files}
 
     jsonfile = open(jname, "w")
-    jsonfile.write(json.dumps(netto_calls))
+    jsonfile.write(json.dumps(js_dict))
     jsonfile.close()
 
 
@@ -343,12 +431,15 @@ def enableImportTracing(normalize_paths=True, show_source=False):
                 result = original_import(name, globals, locals, fromlist, level)
             except ImportError as e:
                 print("%i;EXCEPTION;%s" % (_indentation, e), file=hints_logfile,)
+                result = None
                 raise
             finally:
-                builtins.__import__ = original_import
+                #builtins.__import__ = original_import
+                pass
 
-            m = _moduleRepr(result)
-            print("%i;RESULT;%s;%s" % (_indentation, m[0], m[1]), file=hints_logfile,)
+            if result is not None:
+                m = _moduleRepr(result)
+                print("%i;RESULT;%s;%s" % (_indentation, m[0], m[1]), file=hints_logfile,)
 
             builtins.__import__ = _ourimport
 
@@ -379,7 +470,7 @@ exec(source)
     "&extname", extname
 )
 
-hinter_script = "hint-exec.py"
+hinter_script = "hinted-" + scriptname + extname
 # save the invoker script and start it via subprocess
 invoker_file = open(hinter_script, "w")
 invoker_file.write(invoker_text)
@@ -392,7 +483,7 @@ python_exe = sys.executable  # use the Python we are running under
 if extname == ".pyw":  # but respect a different extension
     python_exe = python_exe.replace("python.exe", "pythonw.exe")
 
-new_argv = [python_exe, "hint-exec.py"] + sys.argv[2:]
+new_argv = [python_exe, hinter_script] + sys.argv[2:]
 rc = subprocess.call(new_argv)
 
 # multiple logfiles may have been created - we join them into a single one
@@ -416,6 +507,5 @@ logfile.close()
 
 myexit(lname, jname, False)  # transform logfile to JSON file
 
-os.remove(lname)  # remove the script's logfile
-os.remove(hinter_script)  # remove stub file
-
+# os.remove(lname)  # remove the script's logfile
+#os.remove(hinter_script)  # remove stub file

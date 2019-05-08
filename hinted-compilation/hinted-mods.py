@@ -33,42 +33,29 @@ from logging import info
 from nuitka import Options
 from nuitka.plugins.PluginBase import UserPluginBase
 from nuitka.plugins.Plugins import active_plugin_list
-from nuitka.ModuleRegistry import (
-    getRootModules,
-    done_modules,
-    uncompiled_modules,
-    active_modules,
-)
 from nuitka.utils.Timing import StopWatch
 
 
-def getNuitkaModules():
-    """ Create a list of all modules known to Nuitka.
+def get_checklist(full_name):
+    """ Generate a list of names that may contain the 'full_name'.
 
     Notes:
-        This will be executed at most once: on the first time when a module
-        is encountered and cannot be found in the recorded calls (JSON array).
+        If full_name = "a.b.c", then ["a.b.c", "a.*", a.b.*", "a.b.c.*"] is
+        generated.
+    Args:
+        full_name: The full module name
     Returns:
-        List of all modules.
+        List of possible "containers".
     """
-    mlist = []
-    for m in getRootModules():
-        if m not in mlist:
-            mlist.append(m)
-
-    for m in done_modules:
-        if m not in mlist:
-            mlist.append(m)
-
-    for m in uncompiled_modules:
-        if m not in mlist:
-            mlist.append(m)
-
-    for m in active_modules:
-        if m not in mlist:
-            mlist.append(m)
-
-    return mlist
+    if not full_name:
+        return []
+    mtab = full_name.split(".")
+    checklist = [full_name]
+    m0 = ""
+    for m in mtab:
+        m0 += "." + m if m0 else m
+        checklist.append(m0 + ".*")
+    return tuple(checklist)
 
 
 class Usr_Plugin(UserPluginBase):
@@ -89,8 +76,10 @@ class Usr_Plugin(UserPluginBase):
 
         fin_name = self.getPluginOptions()[0]  # the JSON  file name
         fin = open(fin_name)
-        self.modules = json.loads(fin.read())  # read it and make an array
+        self.import_info = json.loads(fin.read())  # read it and make an array
         fin.close()
+        self.import_calls = self.import_info["calls"]
+        self.import_files = self.import_info["files"]
 
         """
         Check if we should enable any standard plugins.
@@ -98,11 +87,13 @@ class Usr_Plugin(UserPluginBase):
         "qt-plugins". For "numpy", we also support the "scipy" option.
         """
         tk = np = qt = sc = mp = pmw = torch = sklearn = False
+        tflow = enum = gevent = False
         msg = " '%s' is adding the following options:" % self.plugin_name
-        for m in self.modules:  # scan thru called items
+        for mod in self.import_calls:  # scan thru called items
+            m = mod[0]
             if m == "numpy":
                 np = True
-            elif m == "_tkinter":  # valid indicator for PY2 and PY3
+            elif m in ("tkinter", "Tkinter"):
                 tk = True
             elif m.startswith(("PyQt", "PySide")):
                 qt = True
@@ -116,9 +107,12 @@ class Usr_Plugin(UserPluginBase):
                 torch = True
             elif m == "sklearn":
                 sklearn = True
-
-        if not any((tk, np, sc, qt, mp, pmw, torch, sklearn)):
-            return None
+            elif m == "tensorflow":
+                tflow = True
+            elif m == "enum":
+                enum = True
+            elif m == "gevent":
+                gevent = True
 
         info(msg)
 
@@ -132,8 +126,8 @@ class Usr_Plugin(UserPluginBase):
             info(" --enable-plugin=tk-inter")
 
         if qt:
-            options.plugins_enabled.append("qt-plugins")
-            info(" --enable-plugin=qt-plugins")
+            options.plugins_enabled.append("qt-plugins=all")
+            info(" --enable-plugin=qt-plugins=all")
 
         if mp:
             options.plugins_enabled.append("multiprocessing")
@@ -144,14 +138,33 @@ class Usr_Plugin(UserPluginBase):
             info(" --enable-plugin=pmw-freezer")
 
         if torch:
-            # options.plugins_enabled.append("torch")
-            info(" --enable-plugin=torch (not in Nuitka yet)")
+            options.plugins_enabled.append("torch")
+            info(" --enable-plugin=torch")
 
         if sklearn:
-            # options.plugins_enabled.append("sklearn")
-            info(" --enable-plugin=sklearn (not in Nuitka yet)")
+            options.plugins_enabled.append("sklearn")
+            info(" --enable-plugin=sklearn")
+
+        if tflow:
+            options.plugins_enabled.append("tensorflow")
+            info(" --enable-plugin=tensorflow")
+
+        if enum:
+            options.plugins_enabled.append("enum-compat")
+            info(" --enable-plugin=enum-compat")
+
+        if gevent:
+            options.plugins_enabled.append("gevent")
+            info(" --enable-plugin=gevent")
 
         info("")
+
+        for f in self.import_files:
+            options.recurse_modules.append(f)
+        msg = " Requested Nuitka to recurse to %i modules." % len(self.import_files)
+        info(msg)
+        info("")
+
         return None
 
     def onModuleEncounter(
@@ -197,49 +210,26 @@ class Usr_Plugin(UserPluginBase):
             return False, "module is not used"
 
         if full_name in self.implicit_imports:  # known implicit import
-            return None
+            return True, "module is imported"  # ok
 
-        for m in self.modules:  # loop thru the called items
-            if m == full_name:  # full name found
-                return None  # ok
-            if m == full_name + ".*":  # is a '*'-import
-                return None  # ok
-            if module_package and m == module_package + ".*":
-                # is part of a package
-                return None  # ok
+        checklist = get_checklist(full_name)
+        for mod in self.import_calls:  # loop thru the called items
+            m = mod[0]
+            if m in checklist:
+                return True, "module is hinted to"  # ok
 
-        """
-        We are having a dubious case now:
-        Check if full_name is one of the implicit imports.
-        Expensive logic, but can only happen once per module.
-        Scan through all modules identified by Nuitka and ask each active
-        plugin, if full_name is an implicit import of any of them.
-        """
-        if not self.nuitka_modules:  # first time here?
-            # make our copy of implicit import names known to Nuitka modules.
-            modules = []
-            for m in getNuitkaModules():
-                for plugin in active_plugin_list:
-                    for im in plugin.getImplicitImports(m):
-                        modules.append(im[0])
-            self.implicit_imports = sorted(list(set(modules)))
-            self.nuitka_modules = True
-
-        if full_name not in self.implicit_imports:
-            # check if other plugins would accept this
-            for plugin in active_plugin_list:
-                if plugin.plugin_name == self.plugin_name:
-                    continue
-                rc = plugin.onModuleEncounter(
-                    module_filename, module_name, module_package, module_kind
-                )
-                if rc is not None and rc[0] is True:
-                    self.implicit_imports.append(full_name)
-
-        if full_name in self.implicit_imports:
-            # full_name accepted by someone else
-            info(" keep " + full_name)
-            return None  # ok
+        # check if other plugins would accept this
+        for plugin in active_plugin_list:
+            if plugin.plugin_name == self.plugin_name:
+                continue  # skip myself of course
+            rc = plugin.onModuleEncounter(
+                module_filename, module_name, module_package, module_kind
+            )
+            if rc is not None and rc[0] is True:
+                self.implicit_imports.append(full_name)
+                keep_msg = " keep %s (plugin '%s')" % (full_name, plugin.plugin_name)
+                info(keep_msg)
+                return True, "module is imported"  # ok
 
         if module_package is not None:
             ignore_msg = " drop %s (in %s)" % (module_name, module_package)

@@ -35,10 +35,11 @@ my_opts = [
     "--python-flag=nosite",  # change this if needed
     "--remove-output",  # delete this if you want
     "--experimental=use_pefile",  # will become standard soon
+    "--recurse-none",
 ]
 
 if sys.platform == "win32":
-    my_opts.append("--mingw64")  # change this as required
+    # my_opts.append("--msvc=12.0")  # change this as required
     my_opts.append("--disable-dll-dependency-cache")  # at your discretion ...
 
 script = sys.argv[-1]  # name of script to be compiled
