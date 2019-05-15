@@ -31,7 +31,7 @@ import sys
 import json
 from logging import info
 from nuitka import Options
-from nuitka.plugins.PluginBase import UserPluginBase
+from nuitka.plugins.PluginBase import NuitkaPluginBase
 from nuitka.plugins.Plugins import active_plugin_list
 from nuitka.utils.Timing import StopWatch
 
@@ -40,8 +40,8 @@ def get_checklist(full_name):
     """ Generate a list of names that may contain the 'full_name'.
 
     Notes:
-        If full_name = "a.b.c", then ["a.b.c", "a.*", a.b.*", "a.b.c.*"] is
-        generated.
+        If full_name = "a.b.c", then the list ["a.b.c", "a.*", a.b.*", "a.b.c.*"]
+        is generated.
     Args:
         full_name: The full module name
     Returns:
@@ -58,7 +58,7 @@ def get_checklist(full_name):
     return tuple(checklist)
 
 
-class Usr_Plugin(UserPluginBase):
+class Usr_Plugin(NuitkaPluginBase):
 
     plugin_name = __file__
 
@@ -71,7 +71,6 @@ class Usr_Plugin(UserPluginBase):
 
         self.implicit_imports = []  # speed up repeated lookups
         self.ignored_modules = []  # speed up repeated lookups
-        self.nuitka_modules = False  # switch when checking Nuitka modules
         options = Options.options
 
         fin_name = self.getPluginOptions()[0]  # the JSON  file name
@@ -87,7 +86,7 @@ class Usr_Plugin(UserPluginBase):
         "qt-plugins". For "numpy", we also support the "scipy" option.
         """
         tk = np = qt = sc = mp = pmw = torch = sklearn = False
-        tflow = enum = gevent = False
+        tflow = gevent = False
         msg = " '%s' is adding the following options:" % self.plugin_name
         for mod in self.import_calls:  # scan thru called items
             m = mod[0]
@@ -109,8 +108,6 @@ class Usr_Plugin(UserPluginBase):
                 sklearn = True
             elif m == "tensorflow":
                 tflow = True
-            elif m == "enum":
-                enum = True
             elif m == "gevent":
                 gevent = True
 
@@ -149,19 +146,15 @@ class Usr_Plugin(UserPluginBase):
             options.plugins_enabled.append("tensorflow")
             info(" --enable-plugin=tensorflow")
 
-        if enum:
-            options.plugins_enabled.append("enum-compat")
-            info(" --enable-plugin=enum-compat")
-
         if gevent:
             options.plugins_enabled.append("gevent")
             info(" --enable-plugin=gevent")
 
-        info("")
-
         for f in self.import_files:
             options.recurse_modules.append(f)
-        msg = " Requested Nuitka to recurse to %i modules." % len(self.import_files)
+
+        msg = " --recurse-to %i imported modules." % len(self.import_files)
+
         info(msg)
         info("")
 

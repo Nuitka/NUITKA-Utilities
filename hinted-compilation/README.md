@@ -29,7 +29,9 @@ In order to do this tracing, now execute the following command in that folder:
 
 This will run your script in the normal way, interpreted by Python. You can pass arguments to it as usual, and you will see its output like normal, any GUI windows will appear, etc.
 
-When your script finishes, the service script ``get-hints.py`` will collect and process the import trace(s) that your script has produced while executing. The final result will be a JSON file of name ``yourscript.json`` in the same directory.
+When your script finishes, the service script ``get-hints.py`` will collect and process the import trace(s) that your script has produced while executing. The final result will be a JSON file of name ``yourscript-<...>.json`` in the same directory.
+
+> The string ``<...>`` is a "platform tag", containing information on platform, Python version and bitness this file has been created under. If you eg. want to compile the same script for different operating systems, you will need to run ``get-hints.py`` in each of those cases.
 
 Each time you change your script, please also re-execute the above command before compiling it again. This ensures, that any changes to imported modules are correctly reflected in the JSON file.
 
@@ -39,8 +41,7 @@ See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compila
 ## Compilation
 For compilation, you need **all** of the following files -  again in the **same folder**:
 * ``yourscript.py`` - script created by you
-* ``yourscript.json`` - file created in previous step
-* ``torch-plugin.py`` - for **_pytorch_** scripts only, file in this directory
+* ``yourscript-<...>.json`` - file created in previous step
 * ``nuitka-hints.py`` - file in this directory
 * ``hinted-mods.py`` - file in this directory
 
@@ -68,14 +69,12 @@ Enter the folder ``yourscript.dist`` and execute the command
 
 You should get the same result as in interpreted mode.
 
-**_Important_**: you must type the complete name ``yourscript.exe`` - **including the** ``.exe`` **suffix!** If you don't do this, your script may fail if it uses multiprocessing features. This restriction in the current (0.6.3) version will be lifted in one of the next releases.
-
 ------
 ## Remarks
 We recommend using this feature to do all your standalone compiles. The benefits are:
 
 * **shorter compile times**: because it is known which parts of which packages your program actually uses, the compiler will only process those (and not all it finds somewhere in the code).
-* **smaller** ``dist`` **folder**, because unused code will not become a part of it.
+* **smaller** ``dist`` **folder**, because unused code will not become part of it.
 * **shorter command line**: the invoker script ``nuitka-hints.py`` has a list of options which it passes to the Nuitka compiler. It also automatically turns off the console window, if your script ends with ``.pyw``. It enables user plugin ``hinted-mods.py`` which in turn **dynamically enables** required standard plugins.
 * If you need different standard compile options for your installation, just edit ``nuitka-hints.py`` and make change to its options list.
 * You can also specify any of nuitka's command line options when needed.
@@ -97,7 +96,7 @@ If you have created ``yourscript.json`` with the method above, the same result c
 ```
 python nuitka-hints.py yourscript.py
 ```
-User plugin ``hinted-mods.py`` detects that Numpy, SciPy and PyQt are required by the script and enables the corresponding plugins.
+User plugin ``hinted-mods.py`` detects that standard plugins are required by the script and enables these correspondingly.
 
 > The following standard plugins are currently supported:
 > * numpy / scipy
@@ -105,4 +104,6 @@ User plugin ``hinted-mods.py`` detects that Numpy, SciPy and PyQt are required b
 > * qt-plugins
 > * multiprocessing
 > * pmw-freezer
-> * torch and sklearn are developed and ready to be included in the next Nuitka version.
+> * torch
+> * scikit-learn
+> * tensorflow

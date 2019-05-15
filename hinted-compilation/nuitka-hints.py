@@ -16,6 +16,7 @@
 #     limitations under the License.
 #
 """ This script invokes the Nuitka compiler.
+
 Any option for the Nuitka command line can be entered as an item in list
 'my_opts'. This can be used to create "canned" standard compilation profiles
 and to limit the command line length.
@@ -23,6 +24,7 @@ and to limit the command line length.
 This special version performs standalone compilations and serves as an invoker
 for the user plugin "hinted-mods.py". This plugin controls the inclusion of
 modules in the distribution folder.
+
 """
 import sys
 import os
@@ -30,12 +32,17 @@ import json
 import platform
 from nuitka.__main__ import main
 
+"""
+Note:
+Providing the Python flag "nosite" is *not* necessary, because the "site.py"
+module will automatically be dropped, if your script does not explicitely
+use it.
+"""
 my_opts = [
     "--standalone",  # the purpose of this script
-    "--python-flag=nosite",  # change this if needed
     "--remove-output",  # delete this if you want
     "--experimental=use_pefile",  # will become standard soon
-    "--recurse-none",
+    "--recurse-none",  # exclude everything
 ]
 
 if sys.platform == "win32":
@@ -60,7 +67,9 @@ if extname.lower() == ".pyw":
     my_opts.append("--windows-disable-console")
 
 if not os.path.exists(json_fname):
-    raise ValueError("No such file: " + json_fname)
+    print("File '%s' is needed for this Nuitka compilation." % json_fname)
+    print("Create it by executing 'python get-hints.py %s'" % script)
+    sys.exit(1)
 
 # invoke user plugin to work with the JSON file
 my_opts.append("--user-plugin=hinted-mods.py=" + json_fname)
@@ -77,7 +86,8 @@ sys.argv = new_sysargs
 # keep user happy with some type of protocol
 print("NUITKA is compiling '%s' with these options:" % sys.argv[-1])
 for o in sys.argv[1:-1]:
-    print(" " + o)
+    if "hinted-mods.py" not in o:
+        print(" " + o)
 print(" ")
 
 main()

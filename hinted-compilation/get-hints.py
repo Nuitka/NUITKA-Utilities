@@ -507,5 +507,6 @@ logfile.close()
 
 myexit(lname, jname, False)  # transform logfile to JSON file
 
-# os.remove(lname)  # remove the script's logfile
-#os.remove(hinter_script)  # remove stub file
+os.remove(lname)  # remove the script's logfile
+os.remove(hinter_script)  # remove stub file
+
