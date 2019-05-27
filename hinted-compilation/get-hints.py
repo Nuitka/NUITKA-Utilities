@@ -28,7 +28,6 @@ logs every import statement issued by the script. After end of the subprocess,
 the logfile is interpreted, reduced to unique entries and then stored as a dict
 in JSON format.
 """
-
 import os
 import sys
 import platform
@@ -268,7 +267,7 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
     return
 
 
-def clean_json(netto_calls):
+def clean_json(netto_calls, hinter_name):
     """ Remove tautological entries in the hinted imports list.
 
     Notes:
@@ -285,6 +284,8 @@ def clean_json(netto_calls):
     last_item = None  # store 'a.b.c.' here, if 'a.b.c.*' is found
 
     for x in netto_calls:
+        if x[1] == hinter_name:  # reference to hinted main module?
+            continue  # skip it
         if last_item and x[0].startswith(last_item):  # included in a "*" import?
             continue  # skip it
         list_out.append(x)  # else keep it
@@ -318,6 +319,11 @@ def myexit(lname, jname, trace_logic):
     # make a list of all files that were referenced by an import
     netto_files = sorted(list(set(import_files)))
 
+    # remove unnecessary reference to main module
+    hinter_name, _ = os.path.splitext(os.path.basename(lname))
+    hinter_name = "hinted-" + hinter_name
+    if hinter_name in netto_files:
+        netto_files.remove(hinter_name)
     # make a list of all items that were referenced by an import
     netto_calls = sorted(
         list(set(import_calls)), key=itemgetter(0)
@@ -325,7 +331,7 @@ def myexit(lname, jname, trace_logic):
 
     # remove items that are not meaningful or contribute nothing to the
     # compiled material
-    cleaned_list = clean_json(netto_calls)
+    cleaned_list = clean_json(netto_calls, hinter_name)
 
     js_dict = {"calls": cleaned_list, "files": netto_files}
 
@@ -355,7 +361,7 @@ lname = scriptname + ".log"  # logfile name for the script
 
 # This text is executed. It activates the hinting logic and excutes the
 # script via exec(script).
-invoker_text = """from __future__ import print_function
+invoker_text = """from __future__ import print_function, absolute_import
 import sys, os
 original_import = __import__
 
@@ -403,7 +409,7 @@ def enableImportTracing(normalize_paths=True, show_source=False):
         globals=None,
         locals=None,
         fromlist=None,  # @ReservedAssignment
-        level=-1 if sys.version_info[0] < 2 else 0,
+        level=-1 if sys.version_info[0] < 3 else 0,
     ):
         builtins.__import__ = original_import
 
@@ -433,9 +439,6 @@ def enableImportTracing(normalize_paths=True, show_source=False):
                 print("%i;EXCEPTION;%s" % (_indentation, e), file=hints_logfile,)
                 result = None
                 raise
-            finally:
-                #builtins.__import__ = original_import
-                pass
 
             if result is not None:
                 m = _moduleRepr(result)

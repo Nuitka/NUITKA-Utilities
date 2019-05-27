@@ -24,7 +24,6 @@ and to limit the command line length.
 This special version performs standalone compilations and serves as an invoker
 for the user plugin "hinted-mods.py". This plugin controls the inclusion of
 modules in the distribution folder.
-
 """
 import sys
 import os
@@ -32,12 +31,6 @@ import json
 import platform
 from nuitka.__main__ import main
 
-"""
-Note:
-Providing the Python flag "nosite" is *not* necessary, because the "site.py"
-module will automatically be dropped, if your script does not explicitely
-use it.
-"""
 my_opts = [
     "--standalone",  # the purpose of this script
     "--remove-output",  # delete this if you want
@@ -51,7 +44,7 @@ if sys.platform == "win32":
 
 script = sys.argv[-1]  # name of script to be compiled
 if not os.path.exists(script):
-    raise ValueError("No such file: " + script)
+    sys.exit("No such file: " + script)
 
 filename, extname = os.path.splitext(script)
 json_fname = "%s-%i.%i.%i-%s-%s.json" % (
