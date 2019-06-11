@@ -21,11 +21,11 @@ import os
 import subprocess
 from logging import info
 from nuitka import Options
-from nuitka.plugins.PluginBase import UserPluginBase
+from nuitka.plugins.PluginBase import NuitkaPluginBase
 from nuitka.utils.Timing import StopWatch
 
 
-class MyExit(UserPluginBase):
+class MyExit(NuitkaPluginBase):
     """ User plugin supporting post-processing in standalone mode.
 
     Notes:

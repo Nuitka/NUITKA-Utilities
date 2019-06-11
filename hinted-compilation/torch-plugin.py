@@ -25,7 +25,7 @@ import pkgutil
 import shutil
 from logging import info
 from nuitka import Options
-from nuitka.plugins.PluginBase import UserPluginBase
+from nuitka.plugins.PluginBase import NuitkaPluginBase
 from nuitka.plugins.Plugins import active_plugin_list
 from nuitka.utils.Utils import isWin32Windows
 from nuitka.ModuleRegistry import (
@@ -76,7 +76,7 @@ def get_torch_core_binaries():
     return binaries
 
 
-class Usr_Plugin(UserPluginBase):
+class Usr_Plugin(NuitkaPluginBase):
 
     plugin_name = __file__
 
