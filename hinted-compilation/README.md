@@ -12,12 +12,10 @@ These scripts have been tested on Windows and Linux (Ubuntu). Other platforms sh
 
 * Nuitka must have been installed. Use the version 0.6.3 or later. We will need several support aspects, that are not part of earlier releases, like:
     - availability of experimental feature ``pefile``
-    - numpy plugin must be available under its new name ``numpy``
-    - Tkinter plugin must be available under its new name ``tk-inter``
 
 ------
 ## Preparation
-Before you can compile your script, you must execute it in a way that traces and records all Python ``import`` statements.
+Before you can compile your script, you must execute it in a way that logs all Python ``import`` statements.
 
 You need **all** of the following files in the **same folder**:
 * ``yourscript.py`` - script created by you
@@ -45,19 +43,15 @@ For compilation, you need **all** of the following files -  again in the **same 
 * ``nuitka-hints.py`` - file in this directory
 * ``hinted-mods.py`` - file in this directory
 
-Execute the following command to compile your **_pytorch_** script:
-
-``python nuitka-hints.py --user-plugin=torch-plugin.py yourscript.py``
-
-Execute this command for other scripts (imit the torch plugin):
+To compile your script in standalone mode, execute this command:
 
 ``python nuitka-hints.py yourscript.py``
 
-``nuitka-hints.py`` will invoke the Nuitka compiler with all required parameters generated automatically.
+``nuitka-hints.py`` will determine the required standard plugins and invoke the Nuitka compiler with all required parameters generated automatically.
 
 You may see a number of information messages about ignored modules (which you can ignore). There may also be some warnings which you can ignore, too (hopefully).
 
-The duration of the compile will obviously vary with the size of your script and with the number of packages it uses. Using complex packages like ``pytorch``, ``sklearn``, ``numpy``, ``scipy`` and similar will cause compile times go up to several minutes.
+The duration of the compile will obviously vary with the size of your script and with the number of packages it uses. Using complex packages like ``tensorflow``, ``pytorch``, ``sklearn``, ``numpy``, ``scipy`` and similar will cause compile times go up to several minutes.
 
 See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compilation/hinted-compile.jpg) for a graphical overview of this process.
 
@@ -105,5 +99,5 @@ User plugin ``hinted-mods.py`` detects that standard plugins are required by the
 > * multiprocessing
 > * pmw-freezer
 > * torch
-> * scikit-learn
+> * scikit-learn (sklearn)
 > * tensorflow
