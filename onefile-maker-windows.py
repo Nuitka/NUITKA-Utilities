@@ -50,26 +50,57 @@ import subprocess as sp
 import PySimpleGUI as psg
 
 nsi = """!verbose 0
-Name "%s"
-OutFile "%s"
-InstallDir $TEMP
-RequestExecutionLevel user
-!include "LogicLib.nsh"
-!include "WordFunc.nsh"
-!include "FileFunc.nsh"
+!define SFX_VERSION 2.0.0.1
+
+Unicode True
 SilentInstall silent
-SetCompressor LZMA
+
+!ifdef ICON
+  Icon ${ICON}
+!endif
+
+!ifdef UAC
+  RequestExecutionLevel admin
+!else
+  RequestExecutionLevel user
+!endif
+
+Name ${NAME}
+OutFile "${SFXNAME}"
+
+VIProductVersion ${SFX_VERSION}
+VIFileVersion ${SFX_VERSION}
+
+IAddVersionKey ProductName "${PRODUCT}"
+;VIAddVersionKey Comments ""
+VIAddVersionKey CompanyName "NetPOWER IC"
+VIAddVersionKey LegalTrademarks "${PRODUCT} is a trademark of NetPOWER IC"
+VIAddVersionKey FileDescription "This is the ${PRODUCT} installer program"
+VIAddVersionKey LegalCopyRight "(C) 2017-2019 Orsiris de Jong / NetPOWER.fr"
+VIAddVersionKey FIleVersion "2.0.2.0"
+VIAddVersionKey InternalName "${PRODUCT}-$[IMFVERSION}"
+VIAddVersionKey OriginalFileName "${NAME}"
+
+SetCompress force
+SetCompress force
+; /SOLID gives better compression results, /FINAL overrides any other compression calls
+SetCompressor /SOLID /FINAL lzma
+!ifndef DICTSIZE
+  !define DICTSIZE 4
+!endif
+SetCompressorDictSize ${DICTSIZE}
+SetDatablockOptimize on
+
+; $PluginsDir is a temp directory that gets deleted once execution is finished
+InitPluginsDir
+
 Section ""
-  SetOutPath $INSTDIR
-  File /r "%s"
+  SetOutPath $PluginsDir
+  File /r ${SOURCEDIR}
+  
+  ExecWait '"$PluginsDir\${SFX}"'
+  
 SectionEnd
-Function .onInstSuccess
-  ${If} $INSTDIR == $TEMP
-    ${GetParameters} $R0
-    ExecWait '"$TEMP\\%s" $R0'
-    RMDir /r "$TEMP\\%s"
-  ${EndIf}
-FunctionEnd
 """
 sep_line = "-" * 80
 # NSIS script compiler (standard installation location)
