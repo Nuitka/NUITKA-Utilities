@@ -258,8 +258,10 @@ nsi_file = open(nsi_filename, "w")
 nsi_file.write(nsi_final)
 nsi_file.close()
 
+lzma_dict_size = get_lzma_dict_size(dist_dir)
+
 nsis_command = '"%s" /DNAME="%s" /DINSTALLERNAME="%s" /DSOURCEDIR="%s" /DSFX="%s" /DDICTSIZE="%s" "%s"' \
-               % (makensis, executable_file, executable_path, source_dir, executable_file, lzma_dict_size, nsi_filename)
+               % (makensis, executable_file, executable_path, dist_dir, executable_file, lzma_dict_size, nsi_filename)
 
 
 t0 = time.time()
