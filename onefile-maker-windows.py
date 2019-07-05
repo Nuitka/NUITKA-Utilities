@@ -1,4 +1,5 @@
 #     Copyright 2019, Jorj McKie, mailto:jorj.x.mckie@outlook.de
+#     Copyright 2019, Orsiris de Jong, mailto:ozy@netpower.fr
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
 #     integrates with CPython, but also works on its own.
@@ -167,6 +168,7 @@ nsi = """!verbose 0
 Unicode True
 SilentInstall silent
 
+; One may pass and /DICON=iconfile.ico to makensis
 !ifdef ICON
   Icon ${ICON}
 !endif
@@ -185,7 +187,7 @@ VIFileVersion ${SFX_VERSION}
 
 IAddVersionKey ProductName "${PRODUCT}"
 ;VIAddVersionKey Comments ""
-VIAddVersionKey CompanyName "NetPOWER IC"
+VIAddVersionKey CompanyName "Nuitka"
 VIAddVersionKey LegalTrademarks "${PRODUCT} is a trademark of NetPOWER IC"
 VIAddVersionKey FileDescription "This is the ${PRODUCT} installer program"
 VIAddVersionKey LegalCopyRight "(C) 2017-2019 Orsiris de Jong / NetPOWER.fr"
@@ -220,6 +222,11 @@ makensis = r'"C:\Program Files (x86)\NSIS\makensis.exe"'
 # or just this if on path:
 makensis = '"makensis.exe" '
 
+if not os.path.isfile(makensis):
+    print('Makensis is not available in [%s]. Please install it.' % makensis)
+    sys.exit(1)
+
+# Todo: rework this in order to have product / filename / icon / UAC command line arguments
 try:
     dist = sys.argv[1]
 except:
@@ -251,18 +258,19 @@ nsi_file = open(nsi_filename, "w")
 nsi_file.write(nsi_final)
 nsi_file.close()
 
-t0 = time.time()
-rc = sp.Popen(makensis + " " + nsi_filename, shell=True)
+nsis_command = '"%s" /DNAME="%s" /DINSTALLERNAME="%s" /DSOURCEDIR="%s" /DSFX="%s" /DDICTSIZE="%s" "%s"' \
+               % (makensis, executable_file, executable_path, source_dir, executable_file, lzma_dict_size, nsi_filename)
 
-print(
-    "\nNow executing", makensis, "\nPlease wait, this may take some time.\n", sep_line
-)
-return_code = rc.wait()
+
+t0 = time.time()
+print('Running command [%s]. Please wait, this may take some time.\n' % nsis_command)
+
+exit_code, output = command_runner(nsis_command, timeout=900)
 
 t1 = time.time()
 print(
     sep_line,
     "\nOneFile generation return code:",
-    return_code,
+    exit_code,
     "\nDuration: %i sec." % int(round(t1 - t0)),
 )
