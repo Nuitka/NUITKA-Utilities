@@ -46,8 +46,120 @@ Dependencies
 import sys
 import os
 import time
+from fnmatch import fnmatch
 import subprocess as sp
 import PySimpleGUI as psg
+
+
+def glob_path_match(path, pattern_list):
+    """
+    Checks if path is in a list of glob style wildcard paths
+    :param path: path of file / directory
+    :param pattern_list: list of wildcard patterns to check for
+    :return: Boolean
+    """
+    return any(fnmatch(path, pattern) for pattern in pattern_list)
+
+
+def get_files_recursive(root, d_exclude_list=None, f_exclude_list=None, ext_exclude_list=None, primary_root=None):
+    """
+    Walk a path to recursively find files
+    Modified version of https://stackoverflow.com/a/24771959/2635443 that includes exclusion lists
+    and accepts glob style wildcards on files and directories
+    :param root: path to explore
+    :param d_exclude_list: list of root relative directories paths to exclude
+    :param f_exclude_list: list of filenames without paths to exclude
+    :param ext_exclude_list: list of file extensions to exclude, ex: ['.log', '.bak']
+    :param primary_root: Only used for internal recursive exclusion lookup, don't pass an argument here
+    :return: list of files found in path
+    """
+
+    if d_exclude_list is not None:
+        # Make sure we use a valid os separator for exclusion lists, this is done recursively :(
+        d_exclude_list = [os.path.normpath(d) for d in d_exclude_list]
+    else:
+        d_exclude_list = []
+    if f_exclude_list is None:
+        f_exclude_list = []
+    if ext_exclude_list is None:
+        ext_exclude_list = []
+
+    files = [os.path.join(root, f) for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))
+             and not glob_path_match(f, f_exclude_list) and os.path.splitext(f)[1] not in ext_exclude_list]
+    dirs = [d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d))]
+    for d in dirs:
+        p_root = os.path.join(primary_root, d) if primary_root is not None else d
+        if not glob_path_match(p_root, d_exclude_list):
+            files_in_d = get_files_recursive(os.path.join(root, d), d_exclude_list, f_exclude_list, ext_exclude_list,
+                                             primary_root=p_root)
+            if files_in_d:
+                for f in files_in_d:
+                    files.append(os.path.join(root, f))
+    return files
+
+def get_lzma_dict_size(directory):
+    # Returns lzma dict (in MB) size based on approx of files size
+
+    # Get dist size (bytes to MB by shr 20)
+    # Lets assume that dict should be 2 <= dist_size <= 128 MB
+    total_dist_size = 0
+    for file in get_files_recursive(directory):
+        if not os.path.islink(file):
+            total_dist_size += os.path.getsize(file) >> 20
+
+    # Compute best dict size for compression
+    factor = 2
+    while (total_dist_size / factor > 1) and factor < 128:
+        factor *= 2
+    return "%i" % factor
+  
+def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, decoder='utf-8'):
+    """
+    command_runner 2019011001
+    Whenever we can, we need to avoid shell=True in order to preseve better security
+    Runs system command, returns exit code and stdout/stderr output, and logs output on error
+    valid_exit_codes is a list of codes that don't trigger an error
+    """
+
+    try:
+        # universal_newlines=True makes netstat command fail under windows
+        # timeout may not work on linux
+        # decoder may be unicode_escape for dos commands or utf-8 for powershell
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell,
+                                         timeout=timeout, universal_newlines=False)
+        output = output.decode(decoder, errors='ignore')
+    except subprocess.CalledProcessError as exc:
+        exit_code = exc.returncode
+        try:
+            output = exc.output
+            try:
+                output = output.decode(decoder, errors='ignore')
+            except Exception as subexc:
+                print(subexc)
+        except Exception:
+            output = "command_runner: Could not obtain output from command."
+        if exit_code in valid_exit_codes if valid_exit_codes is not None else [0]:
+            print('Command [%s] returned with exit code [%s]. Command output was:' % (command, exit_code))
+            if output:
+                print(output)
+            return exc.returncode, output
+        else:
+            print('Command [%s] failed with exit code [%s]. Command output was:' %
+                         (command, exc.returncode))
+            print(output)
+            return exc.returncode, output
+    # OSError if not a valid executable
+    except OSError as exc:
+        print('Command [%s] returned:\n%s.' % (command, exc))
+        return None, exc
+    except subprocess.TimeoutExpired:
+        print('Timeout [%s seconds] expired for command [%s] execution.' % (timeout, command))
+        return None, 'Timeout of %s seconds expired.' % timeout
+    else:
+        print('Command [%s] returned with exit code [0]. Command output was:' % command)
+        if output:
+            print(output)
+        return 0, output
 
 nsi = """!verbose 0
 !define SFX_VERSION 2.0.0.1
