@@ -1,4 +1,4 @@
-#     Copyright 2019, Jorj McKie, mailto:jorj.x.mckie@outlook.de
+#    Copyright 2019, Jorj McKie, mailto:jorj.x.mckie@outlook.de
 #     Copyright 2019, Orsiris de Jong, mailto:ozy@netpower.fr
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
@@ -47,9 +47,18 @@ Dependencies
 import sys
 import os
 import time
+import getopt
 from fnmatch import fnmatch
-import subprocess as sp
-import PySimpleGUI as psg
+import subprocess
+import shutil
+
+_GUI = True
+
+try:
+    import PySimpleGUI as psg
+except ModuleNotFoundError:
+    print('Cannot find PySimleGUI. Running as non UI version. Try running [%s -h] for usage.' % sys.argv[0])
+    _GUI = False
 
 
 def glob_path_match(path, pattern_list):
@@ -98,6 +107,7 @@ def get_files_recursive(root, d_exclude_list=None, f_exclude_list=None, ext_excl
                     files.append(os.path.join(root, f))
     return files
 
+
 def get_lzma_dict_size(directory):
     # Returns lzma dict (in MB) size based on approx of files size
 
@@ -113,7 +123,8 @@ def get_lzma_dict_size(directory):
     while (total_dist_size / factor > 1) and factor < 128:
         factor *= 2
     return "%i" % factor
-  
+
+
 def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, decoder='utf-8'):
     """
     command_runner 2019011001
@@ -145,8 +156,7 @@ def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, deco
                 print(output)
             return exc.returncode, output
         else:
-            print('Command [%s] failed with exit code [%s]. Command output was:' %
-                         (command, exc.returncode))
+            print('Command [%s] failed with exit code [%s]. Command output was:' % (command, exc.returncode))
             print(output)
             return exc.returncode, output
     # OSError if not a valid executable
@@ -162,7 +172,35 @@ def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, deco
             print(output)
         return 0, output
 
-nsi = """!verbose 0
+
+def reduce_nuitka_dist(source_dir, dest_dir):
+    NUITKA_EXCLUDE_FILES = ['_asyncio.pyd', '_contextvars.pyd', '_decimal.pyd', '_elementtree.pyd', '_msi.pyd',
+                            '_multiprocessing.pyd', '_overlapped.pyd', '_sqlite3.pyd', 'sqlite3.dll',
+                            'api-ms-win*']
+
+    NUITKA_EXCLUDE_DIRS = ['tk/demos', 'tk/images', 'tk/msgs', 'tcl/encoding', 'tcl/msgs', 'tcl/tzdata']
+
+    dist_files = get_files_recursive(source_dir, NUITKA_EXCLUDE_DIRS, NUITKA_EXCLUDE_FILES)
+    for file in dist_files:
+        absolute_dest_filepath = file.replace(source_dir, dest_dir)
+
+        if not os.path.isdir(os.path.dirname(absolute_dest_filepath)):
+            os.makedirs(os.path.dirname(absolute_dest_filepath))
+        shutil.copyfile(file, absolute_dest_filepath)
+
+
+def help():
+    print('\nNuitka utilities one file SFX creator',
+          '\nWritten in 2019 by Jorj McKie, <jorj.x.mckie@outlook.de> and Orsiris de Jong, <ozy@netpower.fr>\n'
+          '\nUsage:\n',
+          '%s [OPTIONS] --dist=c:\\path\\to\\nuitka\\dist\\directory\n' % sys.argv[0],
+          '\n',
+          'OPTIONS:\n',
+          '--icon=           Path to SFX icon file (.ico)\n',
+          '--uac=            Uac level (may be admin or user)\n')
+
+
+nsi = """!verbose 1 ; Need to stay verbose on file creation
 !define SFX_VERSION 2.0.0.1
 
 Unicode True
@@ -174,18 +212,18 @@ SilentInstall silent
 !endif
 
 !ifdef UAC
-  RequestExecutionLevel admin
+  RequestExecutionLevel ${UAC}
 !else
   RequestExecutionLevel user
 !endif
 
 Name ${NAME}
-OutFile "${SFXNAME}"
+OutFile "${SFXOUTPUT}"
 
 VIProductVersion ${SFX_VERSION}
 VIFileVersion ${SFX_VERSION}
 
-IAddVersionKey ProductName "${PRODUCT}"
+VIAddVersionKey ProductName "${PRODUCT}"
 ;VIAddVersionKey Comments ""
 VIAddVersionKey CompanyName "Nuitka"
 VIAddVersionKey LegalTrademarks "${PRODUCT} is a trademark of NetPOWER IC"
@@ -205,68 +243,131 @@ SetCompressor /SOLID /FINAL lzma
 SetCompressorDictSize ${DICTSIZE}
 SetDatablockOptimize on
 
-; $PluginsDir is a temp directory that gets deleted once execution is finished
-InitPluginsDir
+
 
 Section ""
+  ; $PluginsDir is a temp directory that gets deleted once execution is finished
+  InitPluginsDir
+
   SetOutPath $PluginsDir
-  File /r ${SOURCEDIR}
+  File /r "${SOURCEDIR}\"
   
-  ExecWait '"$PluginsDir\${SFX}"'
+  ExecWait '"$PluginsDir\${SFXEXECUTABLE}"'
   
 SectionEnd
 """
 sep_line = "-" * 80
 # NSIS script compiler (standard installation location)
-makensis = r'"C:\Program Files (x86)\NSIS\makensis.exe"'
-# or just this if on path:
-makensis = '"makensis.exe" '
 
+makensis = r'C:\Program Files (x86)\NSIS\makensis.exe'
 if not os.path.isfile(makensis):
-    print('Makensis is not available in [%s]. Please install it.' % makensis)
-    sys.exit(1)
+    # or just this if on path:
+    makensis = 'makensis.exe'
+if not os.path.isfile(makensis):
+    raise SystemExit('Makensis is not available in [%s]. Please install it.' % makensis)
 
-# Todo: rework this in order to have product / filename / icon / UAC command line arguments
 try:
-    dist = sys.argv[1]
-except:
-    dist = psg.PopupGetFolder(
-        "Select a '.dist' folder:", "Make Nuitka Installation File"
-    )
+    opts, args = getopt.getopt(sys.argv[1:], 'h?', ['dist=', 'icon=', 'filename=', 'uac='])
+except getopt.GetoptError as e:
+    raise SystemExit('Bogus arguments given. [%s]' % e)
+
+dist_given = False
+
+for opt, arg in opts:
+    if opt == '-h':
+        help()
+        sys.exit(0)
+    if opt == '--dist':
+        if os.path.isdir(arg):
+            dist = arg
+            dist_given = True
+        else:
+            raise SystemExit('Dist directory [%s] not found.' % arg)
+    elif opt == '--uac':
+        if arg != 'admin' and arg != 'user':
+            raise SystemExit('Bogus uac [%s] given.' % arg)
+        else:
+            uac = arg
+    elif opt == '--icon':
+        if os.path.isfile(arg):
+            icon = arg
+        else:
+            raise SystemExit('Icon file [%s] not found.' % arg)
+
+if not dist_given  and _GUI is True:
+    layout = [[psg.Text('Dist directory'), psg.InputText(key='dist', do_not_clear=True, enable_events=True, size=(50,1)), psg.FolderBrowse(target='dist')],
+              [psg.Text('Optional Icon '), psg.InputText(key='icon', do_not_clear=True, enable_events=True, size=(50,1)), psg.FileBrowse(target='icon')],
+              [psg.Text('UAC level     '), psg.InputCombo(['user', 'admin'], key='uac')],
+              [psg.Button('OK'), psg.Button('Exit')]
+              ]
+    
+    window = psg.Window('One file maker Nuitka').Layout(layout)
+    window.Finalize()
+
+    while True:
+        event, values = window.Read(timeout=1000)
+        if event is 'OK':
+            dist = values['dist']
+            if not os.path.isdir(dist):
+                psg.Popup('Directory [%s] does not exist' % dist)
+            else:
+                dist_given = True
+                icon = values['icon']
+                uac = values['uac']
+                break
+        elif event is 'Exit':
+            break
+elif not dist_given:
+    raise SystemExit('Cannot make one-file executable.')
+
+if not dist_given:
+    raise SystemExit('No dist directory given.')
+
+try:
+    if not os.path.isdir(dist) or not dist.endswith(".dist"):
+        raise SystemExit('[%s] is not a Nuitka dist folder.' % dist)
+except TypeError:
+    raise SystemExit('[%s] is not a Nuitka dist folder (bogus value given).' % dist)
 
 dist = os.path.abspath(dist)
-if not os.path.isdir(dist) or not dist.endswith(".dist"):
-    raise SystemExit("'%s' is not a Nuitka dist folder" % dist)
+# Reduce nuitka distribution by removing non necessary TK and dll files
+reduce_nuitka_dist(dist, dist + '.reduced')
+dist = dist + '.reduced'
 
+# Get distribution size in multiple of 2 megabytes
+lzma_dict_size = get_lzma_dict_size(dist)
 
-dist_base = os.path.basename(dist)  # basename of dist folder
-dist_dir = os.path.dirname(dist)  # directory part of dist
-exe = dist_base.split(".")[0] + ".exe"
-one_file = exe
-# finalize installation script
-nsi_final = nsi % (
-    dist_base,
-    os.path.join(dist_dir, one_file),
-    dist,
-    os.path.join(dist_base, exe),
-    dist_base,
-)
+executable_file = os.path.basename(dist).split(".")[0] + ".exe"  # basename of dist folder
+executable_path = os.path.dirname(dist)  # directory part of dist
+nsi_source_dir = os.path.join(dist, '*')
+sfx_outputfile = os.path.join(executable_path, executable_file)
 
 # put NSIS installation script to a file
 nsi_filename = dist + ".nsi"
 nsi_file = open(nsi_filename, "w")
-nsi_file.write(nsi_final)
+nsi_file.write(nsi)
 nsi_file.close()
 
-lzma_dict_size = get_lzma_dict_size(dist_dir)
+optional_args = ""
+try:
+    if icon is not None and icon != "":
+        optional_args='/DICON=%s' % icon
+except (NameError, ValueError, TypeError):
+    pass
 
-nsis_command = '"%s" /DNAME="%s" /DINSTALLERNAME="%s" /DSOURCEDIR="%s" /DSFX="%s" /DDICTSIZE="%s" "%s"' \
-               % (makensis, executable_file, executable_path, dist_dir, executable_file, lzma_dict_size, nsi_filename)
+try:
+    if uac is not None and uac != "":
+        optional_args='%s /DUAC=%s' % (optional_args, uac)
+except (NameError, ValueError, TypeError):
+    pass
+
+nsis_command = '"%s" /DNAME="%s" /DSFXOUTPUT="%s" /DSOURCEDIR="%s" /DSFXEXECUTABLE="%s" /DDICTSIZE="%s" %s "%s"' \
+               % (makensis, executable_file, sfx_outputfile, nsi_source_dir, executable_file, lzma_dict_size,
+                  optional_args, nsi_filename)
 
 
 t0 = time.time()
 print('Running command [%s]. Please wait, this may take some time.\n' % nsis_command)
-
 exit_code, output = command_runner(nsis_command, timeout=900)
 
 t1 = time.time()
@@ -276,3 +377,9 @@ print(
     exit_code,
     "\nDuration: %i sec." % int(round(t1 - t0)),
 )
+
+# Cleanup temporary nsi file and reduced dist directory
+if os.path.isfile(nsi_filename):
+    os.remove(nsi_filename)
+if os.path.isdir(dist) and dist.endswith(".reduced"):
+    shutil.rmtree(dist)
