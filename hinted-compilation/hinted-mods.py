@@ -15,15 +15,15 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 #
-""" This script is a user plugin to be invoke by the Nuitka compiler.
+""" This script is a user plugin and invoked by the Nuitka compiler.
 
 Via the plugin option mechanism, it must be given the name of a JSON file,
 which contains all the package and module names that the to-be-compiled script
-invokes.
+will import when running.
 An array of these items is created and immediately used to detect any standard
 plugins that must be enabled.
 
-During the compilation process, for every encountered module Nuitka will ask
+During the compilation process, for every module it encounters, Nuitka will ask
 this plugin, whether to include it.
 """
 import os
@@ -35,18 +35,19 @@ from nuitka.plugins.PluginBase import NuitkaPluginBase
 from nuitka.plugins.Plugins import active_plugin_list
 from nuitka.utils.Timing import StopWatch
 from nuitka.utils.Utils import getOS
+from nuitka.utils.FileOperations import getFileContents
 
 
 def get_checklist(full_name):
     """ Generate a list of names that may contain the 'full_name'.
 
     Notes:
-        If full_name = "a.b.c", then the list
+        Eg. if full_name looks like "a.b.c", then the list
 
         ["a.b.c", "a.*", "a.b.*", "a.b.c.*"]
 
-        is generated. So either the full name itself is found, or it is
-        included in some *-import.
+        is generated. So either the full name itself may be found, or when
+        full_name is included in some *-import.
     Args:
         full_name: The full module name
     Returns:
@@ -61,6 +62,16 @@ def get_checklist(full_name):
         m0 += "." + m if m0 else m
         checklist.append(m0 + ".*")
     return tuple(checklist)  # tuples are a bit more efficient
+
+
+def drop_msg(module_name, module_package):
+    """ Create info message for dropped modules.
+    """
+    if module_package is not None:
+        ignore_msg = "drop %s (in %s)" % (module_name, module_package)
+    else:
+        ignore_msg = "drop %s" % module_name
+    return ignore_msg
 
 
 class UserPlugin(NuitkaPluginBase):
@@ -78,24 +89,28 @@ class UserPlugin(NuitkaPluginBase):
         self.ignored_modules = set()  # speed up repeated lookups
         options = Options.options
         fin_name = self.getPluginOptions()[0]  # the JSON  file name
-        fin = open(fin_name)
-        self.import_info = json.loads(fin.read())  # read it and make an array
-        fin.close()
-        self.import_calls = self.import_info["calls"]
-        self.import_files = self.import_info["files"]
-        self.msg_count = dict()
+        import_info = json.loads(
+            getFileContents(fin_name)
+        )  # read it and extract the two lists
+        self.import_calls = import_info["calls"]
+        self.import_files = import_info["files"]
+        self.msg_count = dict()  # to limit keep messages
         self.msg_limit = 21
+
+        # suppress pytest / _pytest?
+        self.accept_test = self.getPluginOptionBool("test", False)
+
         """
-        Check if we should enable any standard plugins.
-        Currently supported: "tk-inter", "numpy", "multiprocessing" and
-        "qt-plugins". For "numpy", we also support the "scipy" option.
+        Check if we should enable any (optional) standard plugins. This code
+        must be modified whenever more standard plugin become available.
         """
         show_msg = False  # only show info message if parameters are generated
+        # indicators for found packages
         tk = np = qt = sc = mp = pmw = torch = sklearn = False
-        tflow = gevent = mpl = False
-        msg = " '%s' is adding the following options:" % self.plugin_name
+        tflow = gevent = mpl = trio = False
+        msg = "'%s' is adding the following options:" % self.plugin_name
 
-        # detect required standard plugin in order to enable them
+        # detect required standard plugins and request enabling them
         for mod in self.import_calls:  # scan thru called items
             m = mod[0]
             if m == "numpy":
@@ -131,65 +146,78 @@ class UserPlugin(NuitkaPluginBase):
             elif m == "gevent":
                 gevent = True
                 show_msg = True
+            elif m == "trio":
+                trio = True
+                show_msg = True
 
         if show_msg is True:
             info(msg)
 
         if np:
-            o = "numpy="
+            o = ["numpy="]
             if mpl:
-                o += "matplotlib"
+                o.append("matplotlib")
             if sc:
-                o += "scipy" if o.endswith("=") else ",scipy"
-            options.plugins_enabled.append(o)
-            info(" --enable-plugin=" + o)
+                o.append("scipy")
+            if sklearn:
+                o.append("sklearn")
+            o = ",".join(o).replace("=,", "=")
+            if o.endswith("="):
+                o = o[:-1]
+            options.plugins_enabled.append(o)  # enable numpy
+            info("--enable-plugin=" + o)
 
         if tk:
-            options.plugins_enabled.append("tk-inter")
-            info(" --enable-plugin=tk-inter")
+            options.plugins_enabled.append("tk-inter")  # enable tk-inter
+            info("--enable-plugin=tk-inter")
 
         if qt:
+            # TODO more scrutiny for the qt options!
             options.plugins_enabled.append("qt-plugins=sensible")
-            info(" --enable-plugin=qt-plugins=sensible")
+            info("--enable-plugin=qt-plugins=sensible")
 
         if mp:
             options.plugins_enabled.append("multiprocessing")
-            info(" --enable-plugin=multiprocessing")
+            info("--enable-plugin=multiprocessing")
 
         if pmw:
             options.plugins_enabled.append("pmw-freezer")
-            info(" --enable-plugin=pmw-freezer")
+            info("--enable-plugin=pmw-freezer")
 
         if torch:
             options.plugins_enabled.append("torch")
-            info(" --enable-plugin=torch")
+            info("--enable-plugin=torch")
 
-        if sklearn:
-            options.plugins_enabled.append("sklearn")
-            info(" --enable-plugin=sklearn")
+        # if sklearn:
+        #    options.plugins_enabled.append("sklearn")
+        #    info("--enable-plugin=sklearn")
 
         if tflow:
             options.plugins_enabled.append("tensorflow")
-            info(" --enable-plugin=tensorflow")
+            info("--enable-plugin=tensorflow")
 
         if gevent:
             options.plugins_enabled.append("gevent")
-            info(" --enable-plugin=gevent")
+            info("--enable-plugin=gevent")
 
-        for f in self.import_files:
+        if trio:
+            options.plugins_enabled.append("trio")
+            info("--enable-plugin=trio")
+
+        for f in self.import_files:  # request recursion to called modules
             options.recurse_modules.append(f)
 
         # no plugin detected, but recursing to modules?
         if show_msg is False and len(self.import_files) > 0:
             info(msg)
 
-        msg = " --recurse-to for %i imported modules." % len(self.import_files)
+        msg = "--recurse-to for %i imported modules." % len(self.import_files)
 
         if len(self.import_files) > 0:
             info(msg)
             info("")
 
-        self.ImplicitImports = None  # the 'implicit-imports' plugin goes here
+        self.ImplicitImports = None  # the 'implicit-imports' plugin object
         return None
 
     def onModuleEncounter(
@@ -205,7 +233,7 @@ class UserPlugin(NuitkaPluginBase):
             check against them, too.
 
         Args:
-            module_filename: filename (not used here) 
+            module_filename: filename (not used here)
             module_name: module name
             module_package: package name
             module_kind: one of "py" or "shlib" (not used here)
@@ -232,8 +260,20 @@ class UserPlugin(NuitkaPluginBase):
             full_name = module_name
 
         # fall through for easy cases
+        if full_name.startswith("pkg_resources"):
+            return None
+
         if full_name in self.ignored_modules:  # known to be ignored
             return False, "module is not used"
+
+        if self.accept_test is False and module_package in (
+            "pytest",
+            "_pytest",
+            "unittest",
+        ):
+            info(drop_msg(module_name, module_package))
+            self.ignored_modules.add(full_name)
+            return False, "suppress testing components"
 
         if full_name in self.implicit_imports:  # known implicit import
             return True, "module is an implicit import"  # ok
@@ -248,23 +288,20 @@ class UserPlugin(NuitkaPluginBase):
             if rc is not None:
                 if rc[0] is True:  # plugin wants to keep this
                     self.implicit_imports.add(full_name)
-                    keep_msg = " keep %s (plugin '%s')" % (
-                        full_name,
-                        plugin.plugin_name,
-                    )
+                    keep_msg = "keep %s (plugin '%s')" % (full_name, plugin.plugin_name)
                     count = self.msg_count.get(plugin.plugin_name, 0)
                     if count < self.msg_limit:
                         info(keep_msg)
                     self.msg_count[plugin.plugin_name] = count + 1
                     if count == self.msg_limit:
                         info(
-                            " ... 'keep' msg limit exceeded for '%s'."
+                            "... 'keep' msg limit exceeded for '%s'."
                             % plugin.plugin_name
                         )
                     return True, "module is imported"  # ok
                 # plugin wants to drop this
                 self.ignored_modules.add(full_name)
-                ignore_msg = " drop %s (plugin '%s')" % (full_name, plugin.plugin_name)
+                ignore_msg = "drop %s (plugin '%s')" % (full_name, plugin.plugin_name)
                 info(ignore_msg)
                 return False, "dropped by plugin " + plugin.plugin_name
 
@@ -293,26 +330,27 @@ class UserPlugin(NuitkaPluginBase):
             if full_name in import_list0:  # found!
                 for item in import_list0:  # store everything in that list
                     self.implicit_imports.add(item)
-                return True, "module is an implicit imported"  # ok
+                return True, "module is an implicit import"  # ok
 
         # not known by anyone: kick it out!
-        if module_package is not None:
-            ignore_msg = " drop %s (in %s)" % (module_name, module_package)
-        else:
-            ignore_msg = " drop %s" % module_name
-        info(ignore_msg)  # issue ignore message
-
+        info(drop_msg(module_name, module_package))  # issue ignore message
         # faster decision next time
         self.ignored_modules.add(full_name)
         return False, "module is not used"
 
     def onStandaloneDistributionFinished(self, dist_dir):
+        """ Only used to output the compilation time.
+        """
         self.timer.end()
         t = int(round(self.timer.delta()))
-        if t > 300:
-            t = int(round(t / 60.0))
+        if t > 240:
             unit = "minutes"
+            if t >= 600:
+                t = int(round(t / 60.0))
+            else:
+                t = round(t / 60, 1)
         else:
             unit = "seconds"
-        info(" Compile time %i %s." % (t, unit))
+
+        info("Compile time %g %s." % (t, unit))
 

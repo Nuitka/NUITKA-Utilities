@@ -35,8 +35,12 @@ import io
 import json
 import subprocess
 from operator import itemgetter
+from nuitka.utils.FileOperations import hasFilenameExtension
 
 line_number = 0  # global variable for tracing purposes
+
+# accept everything within these packages:
+accept_always = ("importlib_metadata", "pytest", "_pytest")
 
 
 def reader(f):
@@ -52,15 +56,15 @@ def reader(f):
         3: [level, "EXCEPTION", exception]
     """
     global line_number
-    text = "\n"
-    while text == "\n":  # multiprocessing scripts may create empty lines
-        line_number += 1
-        text = f.readline()
+
+    text = f.readline()
+    line_number += 1
 
     if text == "":  # end of file
         return []
 
-    text = text[:-1]  # remove line break char
+    if text.endswith("\n"):
+        text = text[:-1]  # remove line break char
 
     tt = text.split(";")
     if (
@@ -183,12 +187,17 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
         print("unexpected record format", text)
         sys.exit("at line number %i" % line_number)
 
-    while text[1] == "CALL":  # any CALL records will be recursed into
+    while "CALL" in text:  # any CALL records will be recursed into
         call_analyzer(f, text, import_calls, import_files, trace_logic)
         text = reader(f)
 
-    if text[0] != level:  # this record must have our level!
-        sys.exit("%i: unexpected level after %s" % (line_number, str(call_list)))
+    if len(text) < 3:
+        return
+
+    if text[0] != level:  # this record should have our level!
+        matching = False
+    else:
+        matching = True
 
     if text[1] == "EXCEPTION":  # no output if an exception resulted
         return
@@ -197,12 +206,11 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
         sys.exit("%i: expected RESULT after %s" % (line_number, str(call_list)))
 
     RESULT = text[2]  # resulting module name
-    res_file = text[3]  # resulting file name
-
-    if res_file == "built-in":  # skip output for built-in stuff
+    if RESULT == "__main__":  # skip current script
         return
 
-    if RESULT == "__main__":
+    res_file = text[3]  # resulting file name
+    if res_file == "built-in":  # skip output for built-in stuff
         return
 
     if res_file.endswith(".dll"):  # special handling for pythoncom and friends
@@ -218,10 +226,15 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
     normalized_file = normalize_file(res_file)
     write_file(normalized_file)
 
+    if not matching:
+        print("No result matches %i, %s, %s" % (level, CALLED, str(implist)))
     write_mod(RESULT, normalized_file)  # this is a sure output
 
     # members of shared modules cannot be filtered out, so allow them all
-    if not res_file.endswith((".py", ".pyw")):  # must be a shared module
+    if (
+        not hasFilenameExtension(res_file, (".py", ".pyw"))  # a shared module!
+        or normalized_file in accept_always
+    ):
         write_mod(RESULT + ".*", normalized_file)
         return
 
@@ -260,7 +273,7 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
     """
     cmod = RESULT + "." + CALLED  # equals RESULT.CALLED
     write_mod(cmod, normalized_file)  # output it
-    if not implist:  # no list there: finished
+    if not implist:  # no list there: done
         return
     for item in implist:  # or again a list of items
         write_mod(cmod + "." + item, normalized_file)
@@ -464,7 +477,9 @@ extname = "&extname"
 lname = "%s-%i.log" % (scriptname, os.getpid())  # each process has its logfile
 logfile = open(lname, "w", buffering=1)
 hints_logfile = logfile
-source = open(scriptname + extname).read()
+source_file = open(scriptname + extname)
+source = source_file.read()
+source_file.close()
 enableImportTracing()
 exec(source)
 """.replace(
@@ -487,7 +502,13 @@ if extname == ".pyw":  # but respect a different extension
     python_exe = python_exe.replace("python.exe", "pythonw.exe")
 
 new_argv = [python_exe, hinter_script] + sys.argv[2:]
-rc = subprocess.call(new_argv)
+
+try:
+    proc = subprocess.Popen(new_argv)
+    proc.wait()
+except:
+    print("subprocess exception!")
+    print("Trying to still process its output ...")
 
 # multiple logfiles may have been created - we join them into a single one
 log_files = os.listdir(os.curdir)  # list of created logfiles
@@ -502,7 +523,10 @@ for logname in log_files:
         line = lfile.readline()
         if line == "":
             break
-        logfile.writelines(line)
+        if not ";" in line:
+            continue
+        if any(("CALL" in line, "RESULT" in line, "EXCEPTION" in line)):
+            logfile.writelines(line)
     lfile.close()
     os.remove(logname)
 
