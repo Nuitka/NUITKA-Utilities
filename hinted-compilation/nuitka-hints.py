@@ -34,26 +34,20 @@ from nuitka.__main__ import main
 my_opts = [
     "--standalone",  # the purpose of this script
     "--remove-output",  # delete this if you want
-    "--experimental=use_pefile",  # will become standard soon
     "--recurse-none",  # exclude everything
 ]
-
-if sys.platform == "win32":
-    # my_opts.append("--msvc=12.0")  # change this as required
-    my_opts.append("--disable-dll-dependency-cache")  # at your discretion ...
 
 script = sys.argv[-1]  # name of script to be compiled
 if not os.path.exists(script):
     sys.exit("No such file: " + script)
 
 filename, extname = os.path.splitext(script)
-json_fname = "%s-%i.%i.%i-%s-%s.json" % (
+json_fname = "%s-%i%i-%s-%i.json" % (
     filename,
     sys.version_info.major,
     sys.version_info.minor,
-    sys.version_info.micro,
     sys.platform,
-    platform.architecture()[0][:2],
+    64 if sys.maxsize > 2 ** 32 else 32,
 )
 
 if extname.lower() == ".pyw":

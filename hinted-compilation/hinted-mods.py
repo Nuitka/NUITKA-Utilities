@@ -97,7 +97,7 @@ class UserPlugin(NuitkaPluginBase):
         self.msg_count = dict()  # to limit keep messages
         self.msg_limit = 21
 
-        # suppress pytest / _pytest?
+        # suppress pytest / _pytest / unittest?
         self.accept_test = self.getPluginOptionBool("test", False)
 
         """
@@ -188,10 +188,6 @@ class UserPlugin(NuitkaPluginBase):
             options.plugins_enabled.append("torch")
             info("--enable-plugin=torch")
 
-        # if sklearn:
-        #    options.plugins_enabled.append("sklearn")
-        #    info("--enable-plugin=sklearn")
-
         if tflow:
             options.plugins_enabled.append("tensorflow")
             info("--enable-plugin=tensorflow")
@@ -204,14 +200,20 @@ class UserPlugin(NuitkaPluginBase):
             options.plugins_enabled.append("trio")
             info("--enable-plugin=trio")
 
+        recurse_count = 0
         for f in self.import_files:  # request recursion to called modules
+            if self.accept_test is False and f.startswith(
+                ("pytest", "_pytest", "unittest")
+            ):
+                continue
             options.recurse_modules.append(f)
+            recurse_count += 1
 
         # no plugin detected, but recursing to modules?
-        if show_msg is False and len(self.import_files) > 0:
+        if show_msg is False and recurse_count > 0:
             info(msg)
 
-        msg = "--recurse-to for %i imported modules." % len(self.import_files)
+        msg = "--recurse-to for %i imported modules." % recurse_count
 
         if len(self.import_files) > 0:
             info(msg)
@@ -220,9 +222,7 @@ class UserPlugin(NuitkaPluginBase):
         self.ImplicitImports = None  # the 'implicit-imports' plugin object
         return None
 
-    def onModuleEncounter(
-        self, module_filename, module_name, module_package, module_kind
-    ):
+    def onModuleEncounter(self, module_filename, module_name, module_kind):
         """ Help decide whether to include a module.
 
         Notes:
@@ -235,43 +235,28 @@ class UserPlugin(NuitkaPluginBase):
         Args:
             module_filename: filename (not used here)
             module_name: module name
-            module_package: package name
             module_kind: one of "py" or "shlib" (not used here)
 
         Returns:
             None, (True, 'text') or (False, 'text').
             Example: (False, "because it is not called").
         """
-        if module_package:
-            # the standard case:
-            full_name = module_package + "." + module_name
-
-            # also happens: module_name = package.module
-            # then use module_name as the full_name
-            if module_name.startswith(module_package):
-                t = module_name[len(module_package) :]
-                if t.startswith("."):
-                    full_name = module_name
-            # also happens: package = a.b.c.module
-            # then use package as full_name
-            elif module_package.endswith(module_name):
-                full_name = module_package
-        else:
-            full_name = module_name
-
+        full_name = module_name
+        elements = full_name.split(".")
+        package = module_name.getPackageName()
         # fall through for easy cases
-        if full_name.startswith("pkg_resources"):
+        if elements[0] == "pkg_resources":
             return None
 
         if full_name in self.ignored_modules:  # known to be ignored
             return False, "module is not used"
 
-        if self.accept_test is False and module_package in (
+        if self.accept_test is False and elements[0] in (
             "pytest",
             "_pytest",
             "unittest",
         ):
-            info(drop_msg(module_name, module_package))
+            info(drop_msg(full_name, package))
             self.ignored_modules.add(full_name)
             return False, "suppress testing components"
 
@@ -282,9 +267,7 @@ class UserPlugin(NuitkaPluginBase):
         for plugin in active_plugin_list:
             if plugin.plugin_name == self.plugin_name:
                 continue  # skip myself of course
-            rc = plugin.onModuleEncounter(
-                module_filename, module_name, module_package, module_kind
-            )
+            rc = plugin.onModuleEncounter(module_filename, module_name, module_kind)
             if rc is not None:
                 if rc[0] is True:  # plugin wants to keep this
                     self.implicit_imports.add(full_name)
@@ -324,8 +307,8 @@ class UserPlugin(NuitkaPluginBase):
                 sys.exit("could not find 'implicit-imports' plugin")
 
         # ask the 'implicit-imports' plugin whether it knows this guy
-        if module_package is not None:
-            import_set = self.ImplicitImports.getImportsByFullname(module_package)
+        if package is not None:
+            import_set = self.ImplicitImports.getImportsByFullname(package)
             import_list0 = [item[0] for item in import_set]  # only the names
             if full_name in import_list0:  # found!
                 for item in import_list0:  # store everything in that list
@@ -333,7 +316,7 @@ class UserPlugin(NuitkaPluginBase):
                 return True, "module is an implicit import"  # ok
 
         # not known by anyone: kick it out!
-        info(drop_msg(module_name, module_package))  # issue ignore message
+        info(drop_msg(full_name, package))  # issue ignore message
         # faster decision next time
         self.ignored_modules.add(full_name)
         return False, "module is not used"

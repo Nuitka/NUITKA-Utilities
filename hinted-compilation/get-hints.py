@@ -30,7 +30,6 @@ in JSON format.
 """
 import os
 import sys
-import platform
 import io
 import json
 import subprocess
@@ -156,7 +155,7 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
             t = t[:-3]
             return t
 
-        if not ext in (".pyd", ".so"):
+        if ext not in (".pyd", ".so"):
             sys.exit("found unknown Python module type '%s'" % t)
 
         return t
@@ -357,17 +356,16 @@ def myexit(lname, jname, trace_logic):
 # Main program
 # -----------------------------------------------------------------------------
 ifname = sys.argv[1]  # read name of to-be-traced script
-if not bool(ifname) or not os.path.exists(ifname):
+if not os.path.exists(ifname):
     sys.exit("no valid Python script provided")
 
 scriptname, extname = os.path.splitext(ifname)
-jname = "%s-%i.%i.%i-%s-%s.json" % (
+jname = "%s-%i%i-%s-%i.json" % (
     scriptname,
     sys.version_info.major,
     sys.version_info.minor,
-    sys.version_info.micro,
     sys.platform,
-    platform.architecture()[0][:2],
+    64 if sys.maxsize > 2 ** 32 else 32,
 )  # store hinted modules here
 
 lname = scriptname + ".log"  # logfile name for the script
@@ -523,7 +521,7 @@ for logname in log_files:
         line = lfile.readline()
         if line == "":
             break
-        if not ";" in line:
+        if ";" not in line:
             continue
         if any(("CALL" in line, "RESULT" in line, "EXCEPTION" in line)):
             logfile.writelines(line)
