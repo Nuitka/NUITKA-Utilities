@@ -38,6 +38,25 @@ from nuitka.utils.Utils import getOS
 from nuitka.utils.FileOperations import getFileContents
 
 
+def check_dependents(full_name, import_list):
+    """ Check if we are parent of a loaded / recursed-to module file.
+
+    Notes:
+        Accept full_name if full_name.something is a recursed-to module
+
+    Args:
+        full_name: The full module name
+        import_list: List of recursed-to modules
+    Returns:
+        Bool
+    """
+    search_name = full_name + "."
+    for item in import_list:
+        if item.startswith(search_name):
+            return True
+    return False
+
+
 def get_checklist(full_name):
     """ Generate a list of names that may contain the 'full_name'.
 
@@ -296,6 +315,9 @@ class UserPlugin(NuitkaPluginBase):
             m = mod[0]
             if m in checklist:
                 return True, "module is hinted to"  # ok
+
+        if check_dependents(full_name, self.import_files) is True:
+            return True, "parent of recursed-to module"
 
         # next we ask if implicit imports knows our candidate
         if self.ImplicitImports is None:  # the plugin is not yet loaded
