@@ -57,7 +57,10 @@ _GUI = True
 try:
     import PySimpleGUI as psg
 except ModuleNotFoundError:
-    print('Cannot find PySimleGUI. Running as non UI version. Try running [%s -h] for usage.' % sys.argv[0])
+    print(
+        "Cannot find PySimleGUI. Running as non UI version. Try running [%s -h] for usage."
+        % sys.argv[0]
+    )
     _GUI = False
 
 
@@ -71,7 +74,13 @@ def glob_path_match(path, pattern_list):
     return any(fnmatch(path, pattern) for pattern in pattern_list)
 
 
-def get_files_recursive(root, d_exclude_list=None, f_exclude_list=None, ext_exclude_list=None, primary_root=None):
+def get_files_recursive(
+    root,
+    d_exclude_list=None,
+    f_exclude_list=None,
+    ext_exclude_list=None,
+    primary_root=None,
+):
     """
     Walk a path to recursively find files
     Modified version of https://stackoverflow.com/a/24771959/2635443 that includes exclusion lists
@@ -94,14 +103,24 @@ def get_files_recursive(root, d_exclude_list=None, f_exclude_list=None, ext_excl
     if ext_exclude_list is None:
         ext_exclude_list = []
 
-    files = [os.path.join(root, f) for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))
-             and not glob_path_match(f, f_exclude_list) and os.path.splitext(f)[1] not in ext_exclude_list]
+    files = [
+        os.path.join(root, f)
+        for f in os.listdir(root)
+        if os.path.isfile(os.path.join(root, f))
+        and not glob_path_match(f, f_exclude_list)
+        and os.path.splitext(f)[1] not in ext_exclude_list
+    ]
     dirs = [d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d))]
     for d in dirs:
         p_root = os.path.join(primary_root, d) if primary_root is not None else d
         if not glob_path_match(p_root, d_exclude_list):
-            files_in_d = get_files_recursive(os.path.join(root, d), d_exclude_list, f_exclude_list, ext_exclude_list,
-                                             primary_root=p_root)
+            files_in_d = get_files_recursive(
+                os.path.join(root, d),
+                d_exclude_list,
+                f_exclude_list,
+                ext_exclude_list,
+                primary_root=p_root,
+            )
             if files_in_d:
                 for f in files_in_d:
                     files.append(os.path.join(root, f))
@@ -125,7 +144,9 @@ def get_lzma_dict_size(directory):
     return "%i" % factor
 
 
-def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, decoder='utf-8'):
+def command_runner(
+    command, valid_exit_codes=None, timeout=30, shell=False, decoder="utf-8"
+):
     """
     command_runner 2019011001
     Whenever we can, we need to avoid shell=True in order to preseve better security
@@ -137,50 +158,82 @@ def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, deco
         # universal_newlines=True makes netstat command fail under windows
         # timeout may not work on linux
         # decoder may be unicode_escape for dos commands or utf-8 for powershell
-        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell,
-                                         timeout=timeout, universal_newlines=False)
-        output = output.decode(decoder, errors='ignore')
+        output = subprocess.check_output(
+            command,
+            stderr=subprocess.STDOUT,
+            shell=shell,
+            timeout=timeout,
+            universal_newlines=False,
+        )
+        output = output.decode(decoder, errors="ignore")
     except subprocess.CalledProcessError as exc:
         exit_code = exc.returncode
         try:
             output = exc.output
             try:
-                output = output.decode(decoder, errors='ignore')
+                output = output.decode(decoder, errors="ignore")
             except Exception as subexc:
                 print(subexc)
         except Exception:
             output = "command_runner: Could not obtain output from command."
         if exit_code in valid_exit_codes if valid_exit_codes is not None else [0]:
-            print('Command [%s] returned with exit code [%s]. Command output was:' % (command, exit_code))
+            print(
+                "Command [%s] returned with exit code [%s]. Command output was:"
+                % (command, exit_code)
+            )
             if output:
                 print(output)
             return exc.returncode, output
         else:
-            print('Command [%s] failed with exit code [%s]. Command output was:' % (command, exc.returncode))
+            print(
+                "Command [%s] failed with exit code [%s]. Command output was:"
+                % (command, exc.returncode)
+            )
             print(output)
             return exc.returncode, output
     # OSError if not a valid executable
     except OSError as exc:
-        print('Command [%s] returned:\n%s.' % (command, exc))
+        print("Command [%s] returned:\n%s." % (command, exc))
         return None, exc
     except subprocess.TimeoutExpired:
-        print('Timeout [%s seconds] expired for command [%s] execution.' % (timeout, command))
-        return None, 'Timeout of %s seconds expired.' % timeout
+        print(
+            "Timeout [%s seconds] expired for command [%s] execution."
+            % (timeout, command)
+        )
+        return None, "Timeout of %s seconds expired." % timeout
     else:
-        print('Command [%s] returned with exit code [0]. Command output was:' % command)
+        print("Command [%s] returned with exit code [0]. Command output was:" % command)
         if output:
             print(output)
         return 0, output
 
 
 def reduce_nuitka_dist(source_dir, dest_dir):
-    NUITKA_EXCLUDE_FILES = ['_asyncio.pyd', '_contextvars.pyd', '_decimal.pyd', '_elementtree.pyd', '_msi.pyd',
-                            '_multiprocessing.pyd', '_overlapped.pyd', '_sqlite3.pyd', 'sqlite3.dll',
-                            'api-ms-win*']
+    NUITKA_EXCLUDE_FILES = [
+        "_asyncio.pyd",
+        "_contextvars.pyd",
+        "_decimal.pyd",
+        "_elementtree.pyd",
+        "_msi.pyd",
+        "_multiprocessing.pyd",
+        "_overlapped.pyd",
+        "_sqlite3.pyd",
+        "sqlite3.dll",
+        "api-ms-win*",
+    ]
 
-    NUITKA_EXCLUDE_DIRS = ['tk/demos', 'tk/images', 'tk/msgs', 'tcl/encoding', 'tcl/msgs', 'tcl/tzdata']
+    NUITKA_EXCLUDE_DIRS = [
+        "tk/demos",
+        "tk/images",
+        "tk/msgs",
+        "tcl/encoding",
+        "tcl/msgs",
+        "tcl/tzdata",
+    ]
 
-    dist_files = get_files_recursive(source_dir, NUITKA_EXCLUDE_DIRS, NUITKA_EXCLUDE_FILES)
+    dist_files = get_files_recursive(
+        source_dir, NUITKA_EXCLUDE_DIRS, NUITKA_EXCLUDE_FILES
+    )
     for file in dist_files:
         absolute_dest_filepath = file.replace(source_dir, dest_dir)
 
@@ -190,14 +243,16 @@ def reduce_nuitka_dist(source_dir, dest_dir):
 
 
 def help():
-    print('\nNuitka utilities one file SFX creator',
-          '\nWritten in 2019 by Jorj McKie, <jorj.x.mckie@outlook.de> and Orsiris de Jong, <ozy@netpower.fr>\n'
-          '\nUsage:\n',
-          '%s [OPTIONS] --dist=c:\\path\\to\\nuitka\\dist\\directory\n' % sys.argv[0],
-          '\n',
-          'OPTIONS:\n',
-          '--icon=           Path to SFX icon file (.ico)\n',
-          '--uac=            Uac level (may be admin or user)\n')
+    print(
+        "\nNuitka utilities one file SFX creator",
+        "\nWritten in 2019 by Jorj McKie, <jorj.x.mckie@outlook.de> and Orsiris de Jong, <ozy@netpower.fr>\n"
+        "\nUsage:\n",
+        "%s [OPTIONS] --dist=c:\\path\\to\\nuitka\\dist\\directory\n" % sys.argv[0],
+        "\n",
+        "OPTIONS:\n",
+        "--icon=           Path to SFX icon file (.ico)\n",
+        "--uac=            Uac level (may be admin or user)\n",
+    )
 
 
 nsi = """!verbose 1 ; Need to stay verbose on file creation
@@ -259,87 +314,104 @@ SectionEnd
 sep_line = "-" * 80
 # NSIS script compiler (standard installation location)
 
-makensis = r'C:\Program Files (x86)\NSIS\makensis.exe'
+makensis = r"C:\Program Files (x86)\NSIS\makensis.exe"
 if not os.path.isfile(makensis):
     # or just this if on path:
-    makensis = 'makensis.exe'
+    makensis = "makensis.exe"
 if not os.path.isfile(makensis):
-    raise SystemExit('Makensis is not available in [%s]. Please install it.' % makensis)
+    raise SystemExit("Makensis is not available in [%s]. Please install it." % makensis)
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'h?', ['dist=', 'icon=', 'filename=', 'uac='])
+    opts, args = getopt.getopt(
+        sys.argv[1:], "h?", ["dist=", "icon=", "filename=", "uac="]
+    )
 except getopt.GetoptError as e:
-    raise SystemExit('Bogus arguments given. [%s]' % e)
+    raise SystemExit("Bogus arguments given. [%s]" % e)
 
 dist_given = False
 
 for opt, arg in opts:
-    if opt == '-h':
+    if opt == "-h":
         help()
         sys.exit(0)
-    if opt == '--dist':
+    if opt == "--dist":
         if os.path.isdir(arg):
             dist = arg
             dist_given = True
         else:
-            raise SystemExit('Dist directory [%s] not found.' % arg)
-    elif opt == '--uac':
-        if arg != 'admin' and arg != 'user':
-            raise SystemExit('Bogus uac [%s] given.' % arg)
+            raise SystemExit("Dist directory [%s] not found." % arg)
+    elif opt == "--uac":
+        if arg != "admin" and arg != "user":
+            raise SystemExit("Bogus uac [%s] given." % arg)
         else:
             uac = arg
-    elif opt == '--icon':
+    elif opt == "--icon":
         if os.path.isfile(arg):
             icon = arg
         else:
-            raise SystemExit('Icon file [%s] not found.' % arg)
+            raise SystemExit("Icon file [%s] not found." % arg)
 
-if not dist_given  and _GUI is True:
-    layout = [[psg.Text('Dist directory'), psg.InputText(key='dist', do_not_clear=True, enable_events=True, size=(50,1)), psg.FolderBrowse(target='dist')],
-              [psg.Text('Optional Icon '), psg.InputText(key='icon', do_not_clear=True, enable_events=True, size=(50,1)), psg.FileBrowse(target='icon')],
-              [psg.Text('UAC level     '), psg.InputCombo(['user', 'admin'], key='uac')],
-              [psg.Button('OK'), psg.Button('Exit')]
-              ]
-    
-    window = psg.Window('One file maker Nuitka').Layout(layout)
+if not dist_given and _GUI is True:
+    layout = [
+        [
+            psg.Text("Dist directory"),
+            psg.InputText(
+                key="dist", do_not_clear=True, enable_events=True, size=(50, 1)
+            ),
+            psg.FolderBrowse(target="dist"),
+        ],
+        [
+            psg.Text("Optional Icon "),
+            psg.InputText(
+                key="icon", do_not_clear=True, enable_events=True, size=(50, 1)
+            ),
+            psg.FileBrowse(target="icon"),
+        ],
+        [psg.Text("UAC level     "), psg.InputCombo(["user", "admin"], key="uac")],
+        [psg.Button("OK"), psg.Button("Exit")],
+    ]
+
+    window = psg.Window("One file maker Nuitka").Layout(layout)
     window.Finalize()
 
     while True:
         event, values = window.Read(timeout=1000)
-        if event is 'OK':
-            dist = values['dist']
+        if event is "OK":
+            dist = values["dist"]
             if not os.path.isdir(dist):
-                psg.Popup('Directory [%s] does not exist' % dist)
+                psg.Popup("Directory [%s] does not exist" % dist)
             else:
                 dist_given = True
-                icon = values['icon']
-                uac = values['uac']
+                icon = values["icon"]
+                uac = values["uac"]
                 break
-        elif event is 'Exit':
+        elif event is "Exit":
             break
 elif not dist_given:
-    raise SystemExit('Cannot make one-file executable.')
+    raise SystemExit("Cannot make one-file executable.")
 
 if not dist_given:
-    raise SystemExit('No dist directory given.')
+    raise SystemExit("No dist directory given.")
 
 try:
     if not os.path.isdir(dist) or not dist.endswith(".dist"):
-        raise SystemExit('[%s] is not a Nuitka dist folder.' % dist)
+        raise SystemExit("[%s] is not a Nuitka dist folder." % dist)
 except TypeError:
-    raise SystemExit('[%s] is not a Nuitka dist folder (bogus value given).' % dist)
+    raise SystemExit("[%s] is not a Nuitka dist folder (bogus value given)." % dist)
 
 dist = os.path.abspath(dist)
 # Reduce nuitka distribution by removing non necessary TK and dll files
-reduce_nuitka_dist(dist, dist + '.reduced')
-dist = dist + '.reduced'
+reduce_nuitka_dist(dist, dist + ".reduced")
+dist = dist + ".reduced"
 
 # Get distribution size in multiple of 2 megabytes
 lzma_dict_size = get_lzma_dict_size(dist)
 
-executable_file = os.path.basename(dist).split(".")[0] + ".exe"  # basename of dist folder
+executable_file = (
+    os.path.basename(dist).split(".")[0] + ".exe"
+)  # basename of dist folder
 executable_path = os.path.dirname(dist)  # directory part of dist
-nsi_source_dir = os.path.join(dist, '*')
+nsi_source_dir = os.path.join(dist, "*")
 sfx_outputfile = os.path.join(executable_path, executable_file)
 
 # put NSIS installation script to a file
@@ -351,23 +423,33 @@ nsi_file.close()
 optional_args = ""
 try:
     if icon is not None and icon != "":
-        optional_args='/DICON=%s' % icon
+        optional_args = "/DICON=%s" % icon
 except (NameError, ValueError, TypeError):
     pass
 
 try:
     if uac is not None and uac != "":
-        optional_args='%s /DUAC=%s' % (optional_args, uac)
+        optional_args = "%s /DUAC=%s" % (optional_args, uac)
 except (NameError, ValueError, TypeError):
     pass
 
-nsis_command = '"%s" /DNAME="%s" /DSFXOUTPUT="%s" /DSOURCEDIR="%s" /DSFXEXECUTABLE="%s" /DDICTSIZE="%s" %s "%s"' \
-               % (makensis, executable_file, sfx_outputfile, nsi_source_dir, executable_file, lzma_dict_size,
-                  optional_args, nsi_filename)
+nsis_command = (
+    '"%s" /DNAME="%s" /DSFXOUTPUT="%s" /DSOURCEDIR="%s" /DSFXEXECUTABLE="%s" /DDICTSIZE="%s" %s "%s"'
+    % (
+        makensis,
+        executable_file,
+        sfx_outputfile,
+        nsi_source_dir,
+        executable_file,
+        lzma_dict_size,
+        optional_args,
+        nsi_filename,
+    )
+)
 
 
 t0 = time.time()
-print('Running command [%s]. Please wait, this may take some time.\n' % nsis_command)
+print("Running command [%s]. Please wait, this may take some time.\n" % nsis_command)
 exit_code, output = command_runner(nsis_command, timeout=900)
 
 t1 = time.time()
