@@ -21,20 +21,24 @@ import pythoncom
 from win32com.shell import shell, shellcon
 import PySimpleGUI as sg
 
-desktop_path = shell.SHGetFolderPath (0, shellcon.CSIDL_DESKTOP, 0, 0)
+desktop_path = shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOP, 0, 0)
 
 form = sg.FlexForm("Create Links to EXE Files in a Folder")
-message = sg.Text("", size=(60,1))
+message = sg.Text("", size=(60, 1))
 layout = [
-    [sg.Text("Program Folder:", size=(12,1)),
-     sg.InputText("", key="pgm-dir", do_not_clear=True),
-     sg.FolderBrowse(button_text="...")],
-    [sg.Text("Create in:", size=(12,1)),
-     sg.InputText(desktop_path, key="tar-folder", do_not_clear=True),
-     sg.FolderBrowse(button_text="...")],
+    [
+        sg.Text("Program Folder:", size=(12, 1)),
+        sg.InputText("", key="pgm-dir", do_not_clear=True),
+        sg.FolderBrowse(button_text="..."),
+    ],
+    [
+        sg.Text("Create in:", size=(12, 1)),
+        sg.InputText(desktop_path, key="tar-folder", do_not_clear=True),
+        sg.FolderBrowse(button_text="..."),
+    ],
     [message],
-    [sg.Submit(), sg.Cancel()]
-         ]
+    [sg.Submit(), sg.Cancel()],
+]
 
 while True:
     btn, val = form.Layout(layout).Read()
@@ -73,17 +77,17 @@ while True:
 
     # We are all set. Now create a link for each of the EXE files.
     for exe_base in exe_files:
-        exe_file = os.path.join(exe_filedir, exe_base) # full EXE name
-        exe_name, exe_ext = os.path.splitext(exe_base) # split off extension
-        shortcut = pythoncom.CoCreateInstance(         # create link instance
-                        shell.CLSID_ShellLink,
-                        None,
-                        pythoncom.CLSCTX_INPROC_SERVER,
-                        shell.IID_IShellLink,
-                        )
-        shortcut.SetPath(exe_file)                         # set file path
-        shortcut.SetDescription ("Link to %s" % exe_file)  # set description
-        shortcut.SetIconLocation (exe_file, 0)             # set the icon
+        exe_file = os.path.join(exe_filedir, exe_base)  # full EXE name
+        exe_name, exe_ext = os.path.splitext(exe_base)  # split off extension
+        shortcut = pythoncom.CoCreateInstance(  # create link instance
+            shell.CLSID_ShellLink,
+            None,
+            pythoncom.CLSCTX_INPROC_SERVER,
+            shell.IID_IShellLink,
+        )
+        shortcut.SetPath(exe_file)  # set file path
+        shortcut.SetDescription("Link to %s" % exe_file)  # set description
+        shortcut.SetIconLocation(exe_file, 0)  # set the icon
         shortcut.SetWorkingDirectory(exe_filedir)
         persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
         persist_file.Save(os.path.join(tar_folder, "%s.lnk" % exe_name.title()), 0)
