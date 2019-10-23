@@ -291,7 +291,7 @@ def clean_json(netto_calls, hinter_name):
         and thus faster checks.
     """
 
-    # step 1: remove items already included via a *-import
+    # step 1: remove items already covered via a *-import
     list_out = []  # intermediate list
     last_item = None  # store 'a.b.c.' here, if 'a.b.c.*' is found
 
