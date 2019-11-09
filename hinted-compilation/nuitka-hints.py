@@ -30,7 +30,10 @@ import os
 import json
 import platform
 from nuitka.__main__ import main
+from nuitka.Version import getNuitkaVersion
 
+nuitka_vsn = getNuitkaVersion()
+python_vsn = sys.version.split()[0]
 my_opts = [
     "--standalone",  # the purpose of this script
     "--remove-output",  # delete this if you want
@@ -71,7 +74,10 @@ new_sysargs.extend(sys.argv[1:])
 sys.argv = new_sysargs
 
 # keep user happy with some type of protocol
-print("NUITKA is compiling '%s' with these options:" % sys.argv[-1])
+print(
+    "NUITKA v%s on Python %s (%s) is compiling '%s' with these options:"
+    % (nuitka_vsn, python_vsn, sys.platform, sys.argv[-1])
+)
 for o in sys.argv[1:-1]:
     if "hinted-mods.py" not in o:
         print(" " + o)

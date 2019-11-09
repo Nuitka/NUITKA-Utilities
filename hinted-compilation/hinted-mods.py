@@ -33,9 +33,18 @@ from logging import info
 from nuitka import Options
 from nuitka.plugins.PluginBase import NuitkaPluginBase
 from nuitka.plugins.Plugins import active_plugin_list
+from nuitka.utils.FileOperations import getFileContents
 from nuitka.utils.Timing import StopWatch
 from nuitka.utils.Utils import getOS
-from nuitka.utils.FileOperations import getFileContents
+from nuitka.Version import getNuitkaVersion
+
+
+def remove_suffix(mod_dir, mod_name):
+    if mod_name not in mod_dir:
+        return mod_dir
+    l = len(mod_name)
+    p = mod_dir.find(mod_name) + l
+    return mod_dir[:p]
 
 
 def check_dependents(full_name, import_list):
@@ -100,6 +109,8 @@ class UserPlugin(NuitkaPluginBase):
     def __init__(self):
         """ Read the JSON file and enable any standard plugins.
         """
+        if not getNuitkaVersion() >= "0.6.6":
+            sys.exit("Need at least Nuitka v0.6.6 for hinted compilation.")
         # start a timer
         self.timer = StopWatch()
         self.timer.start()
@@ -215,9 +226,9 @@ class UserPlugin(NuitkaPluginBase):
             options.plugins_enabled.append("gevent")
             info("--enable-plugin=gevent")
 
-        if trio:
-            options.plugins_enabled.append("trio")
-            info("--enable-plugin=trio")
+        # if trio:
+        #    options.plugins_enabled.append("trio")
+        #    info("--enable-plugin=trio")
 
         recurse_count = 0
         for f in self.import_files:  # request recursion to called modules
@@ -263,6 +274,8 @@ class UserPlugin(NuitkaPluginBase):
         full_name = module_name
         elements = full_name.split(".")
         package = module_name.getPackageName()
+        package_dir = remove_suffix(module_filename, elements[0])
+
         # fall through for easy cases
         if elements[0] == "pkg_resources":
             return None
@@ -330,7 +343,7 @@ class UserPlugin(NuitkaPluginBase):
 
         # ask the 'implicit-imports' plugin whether it knows this guy
         if package is not None:
-            import_set = self.ImplicitImports.getImportsByFullname(package)
+            import_set = self.ImplicitImports.getImportsByFullname(package, package_dir)
             import_list0 = [item[0] for item in import_set]  # only the names
             if full_name in import_list0:  # found!
                 for item in import_list0:  # store everything in that list
