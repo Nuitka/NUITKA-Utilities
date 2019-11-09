@@ -5,20 +5,18 @@ Obviously, a smaller number of modules leads to a **smaller ``dist`` folder size
 
 Another benefit of this approach: knowing the used packages allows to exactly configure Nuitka's compilation parameters. Most prominently, all required Nuitka **standard plugins** are detected and included.
 
-The basic logic is as follows:
-* Tell Nuitka to **not follow imports** automatically (``--recurse-none``)
-* Tell Nuitka which **standard plugins** should be enabled (``--enable-plugin`` arguments)
-* Tell Nuitka which modules / packages should be loaded (``--recurse-to`` arguments)
-* For each module Nuitka finds during its source code analysis, it will ask for whether to include it. Based on its recorded information, the hinting logic will provide the appropriate answers. This will lead to a rather fine-grained set of packages / sub-packages / modules included in the ``dist`` folder.
-
-The following scripts have been tested on Windows and Linux (Ubuntu). Other platforms should work as well.
+The basic logic of hinted compilation is as follows:
+* Tell Nuitka to **follow no imports** automatically (``--recurse-none``)
+* Tell Nuitka which **standard plugins** should be enabled (generate all required ``--enable-plugin`` arguments)
+* Tell Nuitka which modules / packages should be loaded (generate all required ``--recurse-to`` arguments)
+* When parsing the ``--recurse-to`` modules, for each encountered ``import`` statement Nuitka will ask whether to follow it. Based on its recorded information, the hinting logic will provide the appropriate answers. This will lead to a rather fine-grained set of packages, sub-packages and modules included in the ``dist`` folder.
 
 ------
 ## Prerequisites
 
-* As always when using Nuitka: Your script **must work in interpreted mode**. Syntax errors will cause exceptions during the compile. And of course any required packages must have been installed.
+* As always when using Nuitka: Your script first **must work in interpreted mode**. Syntax errors will cause exceptions during the compile. And of course all required packages must have been installed.
 
-* Nuitka must have been installed - preferably the current version or even its development branch when running into issues. But be sure to use at least version 0.6.3.
+* Nuitka must have been installed - preferably the current version or even its development branch when running into issues. But be sure to use at least version 0.6.6.
 
 * Hinted compilation is for **standalone** mode only. It does not work, or respectively makes no sense otherwise.
 
@@ -57,15 +55,11 @@ For compilation, you need **all** of the following files -  again in the **same 
 python nuitka-hints.py yourscript.py
 ```
 
-``nuitka-hints.py`` **invokes the Nuitka compiler** with a number of parameters which you may want to adapt to your environment. Part of these parameters is ``hinted-mods.py`` (provided with the name of ``yourscript-<...>.json``), which is responsible for the main hinting logic.
+``nuitka-hints.py`` **invokes the Nuitka compiler** with a number of parameters which you can adapt to your environment.
 
-``hinted-mods.py`` is a **user plugin** for the Nuitka compiler. It will use ``yourscript-<...>.json`` to generate required ``--enable-plugin`` and ``--recurse-to`` parameters during its initialization.
+``hinted-mods.py`` is a **user plugin** for the Nuitka compiler. It will read ``yourscript-<...>.json`` and generate required ``--enable-plugin`` and ``--recurse-to`` parameters during its initialization.
 
-Later, during compilation, it will be asked by Nuitka whether to include specific modules and decide appropriately.
-
-> In addition to logfile information, in certain cases ``hinted-mods.py`` may also in turn ask enabled plugins to make these decisions.
-
-You may see a number of ``keep`` and ``drop`` info messages reflecting these decisions.
+Later, during compilation, it will be asked by Nuitka whether to include specific components and decide appropriately. You may see a number of ``keep`` and ``drop`` info messages reflecting these decisions.
 
 See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compilation/hinted-compile.jpg) for a graphical overview of this process.
 
@@ -74,7 +68,7 @@ See [here](https://github.com/Nuitka/NUITKA-Utilities/edit/master/hinted-compila
 Enter the folder ``yourscript.dist`` and execute the command
 
 ```
-Windows: yourscript arg1 arg2 ...
+Windows: yourscript.exe arg1 arg2 ...
 Linux:   ./yourscript arg1 arg2 ...
 ```
 
@@ -84,23 +78,23 @@ You should get the same result as in interpreted mode.
 ## Remarks
 We recommend using this feature to do all your standalone compiles. The benefits are:
 
-* **shorter compile times**: because it is known which parts of which packages your program actually uses, the compiler will only process those (and not all it finds somewhere in the code).
+* **shorter compile times**: because it is known which parts of which packages your program actually uses, the compiler will only process those (and not all it finds somewhere in each corner of the code).
 * **smaller ``dist`` folder**, because unused code will not become part of it.
 * **shorter command line**: the invoker script ``nuitka-hints.py`` has a list of options which it passes to the Nuitka compiler. It also automatically turns off the console window, if your script ends with ``.pyw``. It enables user plugin ``hinted-mods.py`` which in turn **dynamically enables** required standard plugins.
 * If you need different standard compile options for your installation, just edit ``nuitka-hints.py`` and make change to its options list.
-* Nuitka's command line options are also fully supported.
+* Nuitka's command line options are also fully supported. Include them before your script. So you can add parameters for icon inclusion etc.
 
 ------
 ## Example 1
 Let us assume your script uses PyQt, Numpy and Scipy.
 
-Then the normal standalone command line will need to look like this:
+Then the normal standalone command line will then need to look like this:
 
 ```
 python -m nuitka --standalone --python-flag=nosite --enable-plugin=numpy=scipy --enable-plugin=qt-plugins yourscript.py
 ```
 
-Or even more options may be needed to reflect your compiler choice and what not.
+Or even more options may be needed to reflect your compiler choice, console window suppression and what not.
 
 If you have created ``yourscript.json`` like above, the same result can be achieved with the following short command line (and probably in shorter compile time and with a smaller ``dist`` folder):
 
@@ -128,7 +122,7 @@ print("image info:", img.info)
 print("***** PIL test successful *****")
 ```
 
-Compiling this without any special precautions looked like this, lastet about 5 minutes and generated a ``dist`` folder of **67 MB**.
+Compiling this without any special precautions looked like this, took about 5 minutes and generated a ``dist`` folder of **67 MB**.
 
 ```
 D:\Jorj\Desktop\Develop\nuitka>python -m nuitka --standalone pil-test.py
@@ -143,7 +137,7 @@ Nuitka:WARNING:Unresolved '__import__' call at 'C:\Users\Jorj\AppData\Local\Prog
 Nuitka:WARNING:Unresolved '__import__' call at 'C:\Users\Jorj\AppData\Local\Programs\Python\Python37\lib\site-packages\py\_vendored_packages\apipkg.py:69' may require use of '--include-plugin-directory' or '--include-plugin-files'.
 ```
 
-In an effort to react to the plugin warnings, the next alternative tries to exclude numpy and Qt. It lasts about 3 minutes and generates a ``dist`` folder size of **50 MB**.
+In an effort to react to the plugin warnings, the next alternative tries to exclude numpy and Qt. The revised compile took about 3 minutes and generated a ``dist`` folder size of **50 MB**.
 
 ```
 D:\Jorj\Desktop\Develop\nuitka>python -m nuitka --standalone --recurse-not-to=numpy --recurse-not-to=PyQt5 pil-test.py
@@ -200,4 +194,4 @@ Nuitka:WARNING:Not recursing to unused 'urllib.parse'.
 Nuitka:INFO:Compile time 114 seconds.
 ```
 
-This requires only 2 minutes and leads to a ``dist`` folder size of below **28 MB**.
+This required only 2 minutes and lead to a ``dist`` folder size of below **28 MB**.
