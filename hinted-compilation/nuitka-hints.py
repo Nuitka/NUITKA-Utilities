@@ -34,6 +34,11 @@ from nuitka.Version import getNuitkaVersion
 
 nuitka_vsn = getNuitkaVersion()
 python_vsn = sys.version.split()[0]
+this_dir = os.path.dirname(os.path.abspath(__file__))
+hinted_mods_fn = os.path.join(this_dir, "hinted-mods.py")
+if not os.path.exists(hinted_mods_fn):
+    sys.exit("no such file: " + hinted_mods_fn)
+
 my_opts = [
     "--standalone",  # the purpose of this script
     "--remove-output",  # delete this if you want
@@ -62,7 +67,8 @@ if not os.path.exists(json_fname):
     sys.exit(1)
 
 # invoke user plugin to work with the JSON file
-my_opts.append("--user-plugin=hinted-mods.py=" + json_fname)
+user_plugin = "--user-plugin=%s=%s" % (hinted_mods_fn, json_fname)
+my_opts.append(user_plugin)
 
 # now build a new sys.argv array
 new_sysargs = [sys.argv[0]]

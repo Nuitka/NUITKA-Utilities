@@ -280,7 +280,7 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
     return
 
 
-def clean_json(netto_calls, hinter_name):
+def clean_json(netto_calls):
     """ Remove tautological entries in the hinted imports list.
 
     Notes:
@@ -288,7 +288,7 @@ def clean_json(netto_calls, hinter_name):
         found, subsequent entries starting with the same string (excluding the
         asterisk) are skipped. Also cross-check against imported files to
         filter out items that are not callable.
-        This approach leads to a much smaller array of accepted imports,
+        This approach leads to a much shorter array of accepted imports,
         and thus faster checks.
     """
 
@@ -297,14 +297,14 @@ def clean_json(netto_calls, hinter_name):
     last_item = None  # store 'a.b.c.' here, if 'a.b.c.*' is found
 
     for x in netto_calls:
-        if x[1] == hinter_name:  # reference to hinted main module?
-            continue  # skip it
-        if last_item and x[0].startswith(last_item):  # included in a "*" import?
+        if last_item and x.startswith(last_item):  # included in a "*" import?
             continue  # skip it
         list_out.append(x)  # else keep it
-        if x[0].endswith(".*"):  # another *-import?
-            last_item = x[0][:-1]  # refresh pattern
-
+        if x.endswith(".*"):  # another *-import?
+            last_item = x[:-1]  # refresh pattern
+    temp_list = [x for x in list_out if x + ".*" in list_out]
+    for x in temp_list:
+        list_out.remove(x)
     print("Call cleaning has removed %i items." % (len(netto_calls) - len(list_out)))
     return list_out
 
@@ -317,7 +317,7 @@ def myexit(lname, jname, trace_logic):
     the application and the "json" extension.
     """
 
-    ifile = open(lname)  # open the script's logfile
+    ifile = open(lname)  # open the script's (accumulated) logfile
     import_calls = []  # intermediate storage for json output
     import_files = []  # intermediate storage for json output 2
 
@@ -337,15 +337,13 @@ def myexit(lname, jname, trace_logic):
     hinter_name = "hinted-" + hinter_name
     if hinter_name in netto_files:
         netto_files.remove(hinter_name)
+
     # make a list of all items that were referenced by an import
-    netto_calls = sorted(
-        list(set(import_calls)), key=itemgetter(0)
-    )  # reduce to sorted unique names
+    netto_calls = [x[0] for x in import_calls if x[1] != hinter_name]
+    netto_calls = sorted(list(set(netto_calls)))
 
-    # remove items that are not meaningful or contribute nothing to the
-    # compiled material
-    cleaned_list = clean_json(netto_calls, hinter_name)
-
+    # remove items which do not increase the compiled material
+    cleaned_list = clean_json(netto_calls)
     js_dict = {"calls": cleaned_list, "files": netto_files}
 
     jsonfile = open(jname, "w")
@@ -371,7 +369,7 @@ jname = "%s-%i%i-%s-%i.json" % (
 
 lname = scriptname + ".log"  # logfile name for the script
 
-# This text is executed. It activates the hinting logic and excutes the
+# This text is executed. It activates the hinting logic and then excutes the
 # script via exec(script).
 invoker_text = """from __future__ import print_function, absolute_import
 import sys, os
@@ -488,6 +486,7 @@ exec(source)
 )
 
 hinter_script = "hinted-" + scriptname + extname
+
 # save the invoker script and start it via subprocess
 invoker_file = open(hinter_script, "w")
 invoker_file.write(invoker_text)
@@ -504,10 +503,10 @@ new_argv = [python_exe, hinter_script] + sys.argv[2:]
 
 try:
     proc = subprocess.Popen(new_argv)
-    proc.wait()
-except:
-    print("subprocess exception!")
-    print("Trying to still process its output ...")
+    proc.wait(timeout=5 * 60)
+except Exception as e:
+    print("exception '%s' for subprocess '%s'!" % (str(e), hinter_script))
+    print("processing output nonetheless ...")
 
 # multiple logfiles may have been created - we join them into a single one
 log_files = os.listdir(os.curdir)  # list of created logfiles

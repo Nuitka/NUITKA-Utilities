@@ -31,6 +31,7 @@ import sys
 import json
 from logging import info
 from nuitka import Options
+from nuitka.containers.oset import OrderedSet
 from nuitka.plugins.PluginBase import NuitkaPluginBase
 from nuitka.plugins.Plugins import active_plugin_list
 from nuitka.utils.FileOperations import getFileContents
@@ -110,13 +111,13 @@ class UserPlugin(NuitkaPluginBase):
         """ Read the JSON file and enable any standard plugins.
         """
         if not getNuitkaVersion() >= "0.6.6":
-            sys.exit("Need at least Nuitka v0.6.6 for hinted compilation.")
+            sys.exit("Need Nuitka v0.6.6+ for hinted compilation.")
         # start a timer
         self.timer = StopWatch()
         self.timer.start()
 
-        self.implicit_imports = set()  # speed up repeated lookups
-        self.ignored_modules = set()  # speed up repeated lookups
+        self.implicit_imports = OrderedSet()  # speed up repeated lookups
+        self.ignored_modules = OrderedSet()  # speed up repeated lookups
         options = Options.options
         fin_name = self.getPluginOptions()[0]  # the JSON  file name
         import_info = json.loads(
@@ -134,51 +135,53 @@ class UserPlugin(NuitkaPluginBase):
         Check if we should enable any (optional) standard plugins. This code
         must be modified whenever more standard plugin become available.
         """
-        show_msg = False  # only show info message if parameters are generated
+        show_msg = False  # only show info if one ore more detected
         # indicators for found packages
         tk = np = qt = sc = mp = pmw = torch = sklearn = False
-        tflow = gevent = mpl = trio = False
+        eventlet = tflow = gevent = mpl = trio = False
         msg = "'%s' is adding the following options:" % self.plugin_name
 
         # detect required standard plugins and request enabling them
-        for mod in self.import_calls:  # scan thru called items
-            m = mod[0]
-            if m == "numpy":
+        for m in self.import_calls:  # scan thru called items
+            if m in ("numpy", "numpy.*"):
                 np = True
                 show_msg = True
-            if m == "matplotlib":
+            if m in ("matplotlib", "matplotlib.*"):
                 mpl = True
                 show_msg = True
-            elif m in ("tkinter", "Tkinter"):
+            elif m in ("tkinter", "Tkinter", "tkinter.*", "Tkinter.*"):
                 tk = True
                 show_msg = True
             elif m.startswith(("PyQt", "PySide")):
                 qt = True
                 show_msg = True
-            elif m == "scipy":
+            elif m in ("scipy", "scipy.*"):
                 sc = True
                 show_msg = True
-            elif m == "multiprocessing" and getOS() == "Windows":
+            elif m in ("multiprocessing", "multiprocessing.*") and getOS() == "Windows":
                 mp = True
                 show_msg = True
-            elif m == "Pmw":
+            elif m in ("Pmw", "Pmw.*"):
                 pmw = True
                 show_msg = True
             elif m == "torch":
                 torch = True
                 show_msg = True
-            elif m == "sklearn":
+            elif m in ("sklearn", "sklearn.*"):
                 sklearn = True
                 show_msg = True
-            elif m == "tensorflow":
+            elif m in ("tensorflow", "tensorflow.*"):
                 tflow = True
                 show_msg = True
-            elif m == "gevent":
+            elif m in ("gevent", "gevent.*"):
                 gevent = True
                 show_msg = True
-            elif m == "trio":
-                trio = True
+            elif m in ("eventlet", "eventlet.*"):
+                eventlet = True
                 show_msg = True
+            # elif m in ("trio", "trio.*"):
+            #    trio = True
+            #    show_msg = True
 
         if show_msg is True:
             info(msg)
@@ -226,6 +229,10 @@ class UserPlugin(NuitkaPluginBase):
             options.plugins_enabled.append("gevent")
             info("--enable-plugin=gevent")
 
+        if eventlet:
+            options.plugins_enabled.append("eventlet")
+            info("--enable-plugin=eventlet")
+
         # if trio:
         #    options.plugins_enabled.append("trio")
         #    info("--enable-plugin=trio")
@@ -263,7 +270,7 @@ class UserPlugin(NuitkaPluginBase):
             check against them, too.
 
         Args:
-            module_filename: filename (not used here)
+            module_filename: path of the module
             module_name: module name
             module_kind: one of "py" or "shlib" (not used here)
 
@@ -280,7 +287,9 @@ class UserPlugin(NuitkaPluginBase):
         if elements[0] == "pkg_resources":
             return None
 
-        if full_name in self.ignored_modules:  # known to be ignored
+        if (
+            full_name in self.ignored_modules or elements[0] in self.ignored_modules
+        ):  # known to be ignored
             return False, "module is not used"
 
         if self.accept_test is False and elements[0] in (
@@ -324,8 +333,7 @@ class UserPlugin(NuitkaPluginBase):
             return True, "needed by OpenCV"
 
         checklist = get_checklist(full_name)
-        for mod in self.import_calls:  # loop thru the called items
-            m = mod[0]
+        for m in self.import_calls:  # loop thru the called items
             if m in checklist:
                 return True, "module is hinted to"  # ok
 
@@ -370,5 +378,4 @@ class UserPlugin(NuitkaPluginBase):
         else:
             unit = "seconds"
 
-        info("Compile time %g %s." % (t, unit))
-
+        info("Compiled '%s' in %g %s." % (sys.argv[-1], t, unit))
