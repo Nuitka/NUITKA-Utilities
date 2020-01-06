@@ -47,7 +47,7 @@ my_opts = [
 
 script = sys.argv[-1]  # name of script to be compiled
 if not os.path.exists(script):
-    sys.exit("No such file: " + script)
+    sys.exit("No such file: %s.\nUsage is nuitka-hints.py [optional nuitka arguments] your_script.py[w]" % script)
 
 filename, extname = os.path.splitext(script)
 json_fname = "%s-%i%i-%s-%i.json" % (
