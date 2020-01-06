@@ -1,3 +1,6 @@
+#! /usr/bin/env python
+#  -*- coding: utf-8 -*-
+
 #     Copyright 2019, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
@@ -379,7 +382,10 @@ hinter_pid = str(os.getpid())
 
 # This text is executed. It activates the hinting logic and then excutes the
 # script via exec(script).
-invoker_text = """from __future__ import print_function, absolute_import
+invoker_text = """#! /usr/bin/env python
+#  -*- coding: utf-8 -*-
+
+from __future__ import print_function, absolute_import
 import sys, os
 original_import = __import__
 
@@ -483,7 +489,7 @@ hinter_pid = "&hinter_pid"
 lname = "%s-%s.log" % (scriptname, hinter_pid)  # each process has its logfile
 logfile = open(lname, "w", buffering=1)
 hints_logfile = logfile
-source_file = open(scriptname + extname)
+source_file = open(scriptname + extname, encoding='utf-8')
 source = source_file.read()
 source_file.close()
 enableImportTracing()
