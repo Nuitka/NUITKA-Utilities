@@ -75,6 +75,25 @@ Linux:   ./yourscript arg1 arg2 ...
 You should get the same result as in interpreted mode.
 
 ------
+## Troubleshooting
+Modules may be dropped whenever they aren't properly packaged.
+A typical example:
+
+```
+your_scripy.py
+|___your_package
+|_____your_package.py
+```
+
+In your_script.py
+```
+from yourpackage import yourpacakge
+```
+
+The above example will fail because python considers `your_package` to be a namespace, hence a built-in module.
+You will need a valid __init__.py file in the directory of your package in order for hinted compilation to properly recognize the module.
+
+------
 ## Remarks
 We recommend using this feature to do all your standalone compiles. The benefits are:
 
