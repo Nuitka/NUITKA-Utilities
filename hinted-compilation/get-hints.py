@@ -23,7 +23,8 @@ Currently, there is a user plugin which - based on this log file - controls the
 inclusion of modules during Nuitka standalone compile mode.
 
 The logfile creation is done within a separate process. The script to be traced
-is wrapped by "hinter" logic (based on Kay Hayen's hints.py, see https://github.com/Nuitka/Nuitka/blob/develop/lib/hints.py), which
+is wrapped by "hinter" logic (based on Kay Hayen's hints.py,
+see https://github.com/Nuitka/Nuitka/blob/develop/lib/hints.py), which
 logs every import statement issued by the script. After end of the subprocess,
 the logfile is interpreted, reduced to unique entries and then stored as a dict
 in JSON format.
@@ -102,7 +103,7 @@ def reader(f):
         )
         try:
             implist = json.loads(implist)
-        except:
+        except (ValueError, TypeError):
             print("JSON problem:", implist)
             print("line:", line_number)
             print("tt:", tt)
@@ -357,6 +358,11 @@ def myexit(lname, jname, trace_logic):
 ifname = sys.argv[1]  # read name of to-be-traced script
 if not os.path.exists(ifname):
     sys.exit("no valid Python script provided")
+else:
+    ifname = os.path.abspath(ifname)
+
+ifpath = os.path.dirname(os.path.abspath(ifname))
+ifbasename = os.path.basename(os.path.abspath(ifname))
 
 scriptname, extname = os.path.splitext(ifname)
 jname = "%s-%i%i-%s-%i.json" % (
@@ -368,6 +374,8 @@ jname = "%s-%i%i-%s-%i.json" % (
 )  # store hinted modules here
 
 lname = scriptname + ".log"  # logfile name for the script
+
+hinter_pid = str(os.getpid())
 
 # This text is executed. It activates the hinting logic and then excutes the
 # script via exec(script).
@@ -471,7 +479,8 @@ def enableImportTracing(normalize_paths=True, show_source=False):
 
 scriptname = "&scriptname"
 extname = "&extname"
-lname = "%s-%i.log" % (scriptname, os.getpid())  # each process has its logfile
+hinter_pid = "&hinter_pid"
+lname = "%s-%s.log" % (scriptname, hinter_pid)  # each process has its logfile
 logfile = open(lname, "w", buffering=1)
 hints_logfile = logfile
 source_file = open(scriptname + extname)
@@ -483,9 +492,11 @@ exec(source)
     "&scriptname", scriptname
 ).replace(
     "&extname", extname
+).replace(
+    "&hinter_pid", hinter_pid
 )
 
-hinter_script = "hinted-" + scriptname + extname
+hinter_script = os.path.join(ifpath, "hinted-" + ifbasename + extname)
 
 # save the invoker script and start it via subprocess
 invoker_file = open(hinter_script, "w")
@@ -509,14 +520,15 @@ except Exception as e:
     print("processing output nonetheless ...")
 
 # multiple logfiles may have been created - we join them into a single one
-log_files = os.listdir(os.curdir)  # list of created logfiles
+log_files = [f for f in os.listdir(ifpath) if os.path.isfile(os.path.join(ifpath, f)) and f.endswith('.log')]
 logfile = open(lname, "w")  # the final logfile
 
 for logname in log_files:
     # select the right files and concatenate them
-    if not (logname.startswith(scriptname + "-") and logname.endswith(".log")):
+    if not '%s-%s.log' % (os.path.basename(scriptname), hinter_pid) == logname:
         continue  # this file is not for us
-    lfile = open(logname)
+    full_logname = os.path.join(ifpath, logname)
+    lfile = open(full_logname)
     while True:
         line = lfile.readline()
         if line == "":
@@ -526,7 +538,7 @@ for logname in log_files:
         if any(("CALL" in line, "RESULT" in line, "EXCEPTION" in line)):
             logfile.writelines(line)
     lfile.close()
-    os.remove(logname)
+    os.remove(full_logname)
 
 logfile.close()
 
@@ -534,4 +546,3 @@ myexit(lname, jname, False)  # transform logfile to JSON file
 
 os.remove(lname)  # remove the script's logfile
 os.remove(hinter_script)  # remove stub file
-
