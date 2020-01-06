@@ -332,6 +332,9 @@ class UserPlugin(NuitkaPluginBase):
         if full_name == "cv2":
             return True, "needed by OpenCV"
 
+        if full_name.startswith('pywin'):
+            return True, "needed by pywin32"
+
         checklist = get_checklist(full_name)
         for m in self.import_calls:  # loop thru the called items
             if m in checklist:
