@@ -26,10 +26,11 @@ plugins that must be enabled.
 During the compilation process, for every module it encounters, Nuitka will ask
 this plugin, whether to include it.
 """
+import json
 import os
 import sys
-import json
 from logging import info
+
 from nuitka import Options
 from nuitka.containers.oset import OrderedSet
 from nuitka.plugins.PluginBase import NuitkaPluginBase
@@ -37,7 +38,6 @@ from nuitka.plugins.Plugins import active_plugin_list
 from nuitka.utils.FileOperations import getFileContents
 from nuitka.utils.Timing import StopWatch
 from nuitka.utils.Utils import getOS
-from nuitka.Version import getNuitkaVersion
 
 
 def remove_suffix(mod_dir, mod_name):
@@ -109,9 +109,15 @@ class UserPlugin(NuitkaPluginBase):
 
     def __init__(self):
         """ Read the JSON file and enable any standard plugins.
+
+        Notes:
+            Read the JSON file produced during the get-hints step. It will
+            contain a list of imported items ("calls") and a list of modules /
+            packages ("files") to be loaded and recursed into.
+            Depending on the items in 'files', we will trigger loading standard
+            plugins.
         """
-        if not getNuitkaVersion() >= "0.6.6":
-            sys.exit("Need Nuitka v0.6.6+ for hinted compilation.")
+
         # start a timer
         self.timer = StopWatch()
         self.timer.start()
@@ -138,8 +144,10 @@ class UserPlugin(NuitkaPluginBase):
         show_msg = False  # only show info if one ore more detected
         # indicators for found packages
         tk = np = qt = sc = mp = pmw = torch = sklearn = False
-        eventlet = tflow = gevent = mpl = trio = False
-        msg = "'%s' is adding the following options:" % self.plugin_name
+        eventlet = tflow = gevent = mpl = trio = dill = False
+        msg = "'%s' is adding the following options:" % os.path.basename(
+            self.plugin_name
+        )
 
         # detect required standard plugins and request enabling them
         for m in self.import_calls:  # scan thru called items
@@ -178,6 +186,9 @@ class UserPlugin(NuitkaPluginBase):
                 show_msg = True
             elif m in ("eventlet", "eventlet.*"):
                 eventlet = True
+                show_msg = True
+            elif m in ("dill", "dill.*"):
+                dill = True
                 show_msg = True
             # elif m in ("trio", "trio.*"):
             #    trio = True
@@ -233,6 +244,10 @@ class UserPlugin(NuitkaPluginBase):
             options.plugins_enabled.append("eventlet")
             info("--enable-plugin=eventlet")
 
+        if dill:
+            options.plugins_enabled.append("dill-compat")
+            info("--enable-plugin=dill-compat")
+
         # if trio:
         #    options.plugins_enabled.append("trio")
         #    info("--enable-plugin=trio")
@@ -250,9 +265,11 @@ class UserPlugin(NuitkaPluginBase):
         if show_msg is False and recurse_count > 0:
             info(msg)
 
-        msg = "--recurse-to for %i imported modules." % recurse_count
-
         if len(self.import_files) > 0:
+            msg = "--recurse-to=%s and %i more modules" % (
+                self.import_files[-1],
+                recurse_count - 1,
+            )
             info(msg)
             info("")
 
@@ -354,7 +371,15 @@ class UserPlugin(NuitkaPluginBase):
 
         # ask the 'implicit-imports' plugin whether it knows this guy
         if package is not None:
-            import_set = self.ImplicitImports.getImportsByFullname(package, package_dir)
+            try:
+                import_set = self.ImplicitImports.getImportsByFullname(
+                    package, package_dir
+                )
+            except TypeError:
+                sys.exit(
+                    "versions of hinted-mods.py and ImplicitImports.py are incompatible"
+                )
+
             import_list0 = [item[0] for item in import_set]  # only the names
             if full_name in import_list0:  # found!
                 for item in import_list0:  # store everything in that list
@@ -367,9 +392,16 @@ class UserPlugin(NuitkaPluginBase):
         self.ignored_modules.add(full_name)
         return False, "module is not used"
 
+    def getImplicitImports(self, module):
+        """Declare all our modules as mandatory implicit imports."""
+        full_name = module.getFullName()
+        if full_name == "__main__":
+            for f in Options.options.recurse_modules:
+                if f != "__future__":
+                    yield f, False
+
     def onStandaloneDistributionFinished(self, dist_dir):
-        """ Only used to output the compilation time.
-        """
+        """ Only used to output the compilation time."""
         self.timer.end()
         t = int(round(self.timer.delta()))
         if t > 240:

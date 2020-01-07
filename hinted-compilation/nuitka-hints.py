@@ -25,14 +25,17 @@ This special version performs standalone compilations and serves as an invoker
 for the user plugin "hinted-mods.py". This plugin controls the inclusion of
 modules in the distribution folder.
 """
-import sys
-import os
 import json
+import os
 import platform
+import sys
+
 from nuitka.__main__ import main
 from nuitka.Version import getNuitkaVersion
 
 nuitka_vsn = getNuitkaVersion()
+if not nuitka_vsn >= "0.6.6":
+    sys.exit("This needs Nuitka version 0.6.6 or higher.")
 python_vsn = sys.version.split()[0]
 this_dir = os.path.dirname(os.path.abspath(__file__))
 hinted_mods_fn = os.path.join(this_dir, "hinted-mods.py")
@@ -47,7 +50,7 @@ my_opts = [
 
 script = sys.argv[-1]  # name of script to be compiled
 if not os.path.exists(script):
-    sys.exit("No such file: %s.\nUsage is nuitka-hints.py [optional nuitka arguments] your_script.py[w]" % script)
+    sys.exit("No such file: " + script)
 
 filename, extname = os.path.splitext(script)
 json_fname = "%s-%i%i-%s-%i.json" % (
@@ -87,6 +90,6 @@ print(
 for o in sys.argv[1:-1]:
     if "hinted-mods.py" not in o:
         print(" " + o)
-print(" ")
+print()
 
 main()

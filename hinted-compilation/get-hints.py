@@ -1,6 +1,3 @@
-#! /usr/bin/env python
-#  -*- coding: utf-8 -*-
-
 #     Copyright 2019, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
@@ -32,12 +29,13 @@ logs every import statement issued by the script. After end of the subprocess,
 the logfile is interpreted, reduced to unique entries and then stored as a dict
 in JSON format.
 """
-import os
-import sys
 import io
 import json
+import os
 import subprocess
+import sys
 from operator import itemgetter
+
 from nuitka.utils.FileOperations import hasFilenameExtension
 from nuitka.utils.Utils import getSharedLibrarySuffix
 
