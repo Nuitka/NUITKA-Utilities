@@ -149,6 +149,22 @@ class UserPlugin(NuitkaPluginBase):
             self.plugin_name
         )
 
+        # we need matplotlib-specific cleanup to happen first:
+        # if no mpl backend is used, reference to matplotlib is removed alltogether
+        if "matplotlib.backends" not in self.import_files:
+            temp = [
+                f
+                for f in self.import_calls
+                if not f.startswith(("matplotlib", "mpl_toolkits"))
+            ]
+            self.import_calls = temp
+            temp = [
+                f
+                for f in self.import_files
+                if not f.startswith(("matplotlib", "mpl_toolkits"))
+            ]
+            self.import_files = temp
+
         # detect required standard plugins and request enabling them
         for m in self.import_calls:  # scan thru called items
             if m in ("numpy", "numpy.*"):
@@ -349,7 +365,7 @@ class UserPlugin(NuitkaPluginBase):
         if full_name == "cv2":
             return True, "needed by OpenCV"
 
-        if full_name.startswith('pywin'):
+        if full_name.startswith("pywin"):
             return True, "needed by pywin32"
 
         checklist = get_checklist(full_name)
@@ -393,11 +409,11 @@ class UserPlugin(NuitkaPluginBase):
         return False, "module is not used"
 
     def getImplicitImports(self, module):
-        """Declare all our modules as mandatory implicit imports."""
+        """Declare all matplotlib.backends modules as implicit imports."""
         full_name = module.getFullName()
-        if full_name == "__main__":
+        if full_name == "__main__":  # need to make sure that backends are used
             for f in Options.options.recurse_modules:
-                if f != "__future__":
+                if f.startswith("matplotlib.backends"):
                     yield f, False
 
     def onStandaloneDistributionFinished(self, dist_dir):
