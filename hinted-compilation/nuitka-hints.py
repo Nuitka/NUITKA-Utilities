@@ -44,7 +44,6 @@ if not os.path.exists(hinted_mods_fn):
 
 my_opts = [
     "--standalone",  # the purpose of this script
-    "--remove-output",  # delete this if you want
     "--recurse-none",  # exclude everything
 ]
 
