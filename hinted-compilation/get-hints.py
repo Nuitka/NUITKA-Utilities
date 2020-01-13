@@ -481,7 +481,7 @@ def enableImportTracing(normalize_paths=True, show_source=False):
 
     builtins.__import__ = _ourimport
 
-scriptname = "&scriptname"
+scriptname = r"&scriptname"
 extname = "&extname"
 hinter_pid = "&hinter_pid"
 lname = "%s-%s.log" % (scriptname, hinter_pid)  # each process has its logfile
