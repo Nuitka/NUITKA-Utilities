@@ -500,7 +500,7 @@ exec(source)
     "&hinter_pid", hinter_pid
 )
 
-hinter_script = os.path.join(ifpath, "hinted-" + ifbasename + extname)
+hinter_script = os.path.join(ifpath, "hinted-" +  os.path.basename(scriptname) + extname)
 
 # save the invoker script and start it via subprocess
 invoker_file = open(hinter_script, "w")
