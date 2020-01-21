@@ -366,6 +366,7 @@ ifpath = os.path.dirname(os.path.abspath(ifname))
 ifbasename = os.path.basename(os.path.abspath(ifname))
 
 scriptname, extname = os.path.splitext(ifname)
+scriptname = scriptname.replace('\\', '/')
 jname = "%s-%i%i-%s-%i.json" % (
     scriptname,
     sys.version_info.major,
