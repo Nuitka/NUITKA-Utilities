@@ -33,8 +33,9 @@ from logging import info
 
 from nuitka import Options
 from nuitka.containers.oset import OrderedSet
+from nuitka.containers.odict import OrderedDict
 from nuitka.plugins.PluginBase import NuitkaPluginBase
-from nuitka.plugins.Plugins import active_plugin_list
+from nuitka.plugins.Plugins import active_plugins
 from nuitka.utils.FileOperations import getFileContents
 from nuitka.utils.Timing import StopWatch
 from nuitka.utils.Utils import getOS
@@ -338,7 +339,7 @@ class UserPlugin(NuitkaPluginBase):
             return True, "module is an implicit import"  # ok
 
         # check if other plugins would accept this
-        for plugin in active_plugin_list:
+        for name, plugin in active_plugins.items():
             if plugin.plugin_name == self.plugin_name:
                 continue  # skip myself of course
             rc = plugin.onModuleEncounter(module_filename, module_name, module_kind)
@@ -378,7 +379,7 @@ class UserPlugin(NuitkaPluginBase):
 
         # next we ask if implicit imports knows our candidate
         if self.ImplicitImports is None:  # the plugin is not yet loaded
-            for plugin in active_plugin_list:
+            for name, plugin in active_plugins.items():
                 if plugin.plugin_name == "implicit-imports":
                     self.ImplicitImports = plugin
                     break
