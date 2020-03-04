@@ -1,4 +1,8 @@
-#     Copyright 2019, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
+#! /usr/bin/env python
+#  -*- coding: utf-8 -*-
+
+#     Copyright 2019-2020, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
+#     Copyright 2019-2020, Orsiris de Jong, mailto:<ozy@netpower.fr>
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
 #     integrates with CPython, but also works on its own.
@@ -29,13 +33,12 @@ logs every import statement issued by the script. After end of the subprocess,
 the logfile is interpreted, reduced to unique entries and then stored as a dict
 in JSON format.
 """
+import os
+import sys
 import io
 import json
-import os
 import subprocess
-import sys
 from operator import itemgetter
-
 from nuitka.utils.FileOperations import hasFilenameExtension
 from nuitka.utils.Utils import getSharedLibrarySuffix
 
@@ -70,9 +73,9 @@ def reader(f):
 
     tt = text.split(";")
     if (
-        len(tt) not in (3, 4)
-        or not tt[0].isalnum()
-        or tt[1] not in ("CALL", "RESULT", "EXCEPTION")
+            len(tt) not in (3, 4)
+            or not tt[0].isalnum()
+            or tt[1] not in ("CALL", "RESULT", "EXCEPTION")
     ):
         print("invalid record %i %s" % (line_number, text))
         print("resulted in tt:", tt)
@@ -98,9 +101,9 @@ def reader(f):
     else:  # turn tuple into a list, so JSON accepts it
         implist = (
             implist.replace("(", "[")  # make list left bracket
-            .replace(",)", "]")  # make list right bracket
-            .replace(")", "]")  # take care of singular item tuple
-            .replace("'", '"')  # exchange quotes and apostrophies
+                .replace(",)", "]")  # make list right bracket
+                .replace(")", "]")  # take care of singular item tuple
+                .replace("'", '"')  # exchange quotes and apostrophies
         )
         try:
             implist = json.loads(implist)
@@ -234,8 +237,8 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
 
     # members of shared modules cannot be filtered out, so allow them all
     if (
-        hasFilenameExtension(res_file, getSharedLibrarySuffix())  # a shared module!
-        or normalized_file in accept_always
+            hasFilenameExtension(res_file, getSharedLibrarySuffix())  # a shared module!
+            or normalized_file in accept_always
     ):
         write_mod(RESULT + ".*", normalized_file)
         return
@@ -248,9 +251,9 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
         return
 
     if (
-        CALLED.startswith(RESULT)
-        or RESULT.startswith(CALLED)
-        or RESULT.endswith(CALLED)
+            CALLED.startswith(RESULT)
+            or RESULT.startswith(CALLED)
+            or RESULT.endswith(CALLED)
     ):
         # CALL and RESULT names contain each other in some way
         if not implist:
@@ -356,7 +359,10 @@ def myexit(lname, jname, trace_logic):
 # -----------------------------------------------------------------------------
 # Main program
 # -----------------------------------------------------------------------------
-ifname = sys.argv[1]  # read name of to-be-traced script
+try:
+    ifname = sys.argv[1]  # read name of to-be-traced script
+except:
+    ifname = None
 if not os.path.exists(ifname):
     sys.exit("no valid Python script provided")
 else:
@@ -420,9 +426,8 @@ def _moduleRepr(module):
             )
 
         file_desc = _normalizePath(module_file).replace(".pyc", ".py")
-    except AttributeError:
+    except AttributeError as exc:
         file_desc = "built-in"
-
     return (module.__name__, file_desc)
 
 
@@ -501,7 +506,7 @@ exec(source)
     "&hinter_pid", hinter_pid
 )
 
-hinter_script = os.path.join(ifpath, "hinted-" +  os.path.basename(scriptname) + extname)
+hinter_script = os.path.join(ifpath, "hinted-" + os.path.basename(scriptname) + extname)
 
 # save the invoker script and start it via subprocess
 invoker_file = open(hinter_script, "w")
