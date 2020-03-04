@@ -1,4 +1,5 @@
-#     Copyright 2019, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
+#     Copyright 2019-2020, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
+#     Copyright 2019-2020, Orsiris de Jong, mailto:<ozy@netpower.fr>
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
 #     integrates with CPython, but also works on its own.
@@ -26,19 +27,25 @@ plugins that must be enabled.
 During the compilation process, for every module it encounters, Nuitka will ask
 this plugin, whether to include it.
 """
-import json
 import os
 import sys
+import json
 from logging import info
-
 from nuitka import Options
 from nuitka.containers.oset import OrderedSet
+from nuitka.containers.odict import OrderedDict
 from nuitka.plugins.PluginBase import NuitkaPluginBase
-from nuitka.plugins.Plugins import active_plugin_list
 from nuitka.utils.FileOperations import getFileContents
 from nuitka.utils.Timing import StopWatch
 from nuitka.utils.Utils import getOS
+from nuitka.Version import getNuitkaVersion
 
+nuitka_version = getNuitkaVersion()
+if nuitka_version <= "0.6.7":
+    from nuitka.plugins.Plugins import active_plugin_list as active_plugins
+else:
+    from nuitka.plugins.Plugins import getActivePlugins
+    active_plugins = getActivePlugins()
 
 def remove_suffix(mod_dir, mod_name):
     if mod_name not in mod_dir:
@@ -103,11 +110,12 @@ def drop_msg(module_name, module_package):
     return ignore_msg
 
 
-class UserPlugin(NuitkaPluginBase):
+class HintedModsPlugin(NuitkaPluginBase):
 
-    plugin_name = __file__
+    # Derive from filename, but can and should also be explicit.
+    plugin_name = __name__.split(".")[-1]
 
-    def __init__(self):
+    def __init__(self, hinted_json_file):
         """ Read the JSON file and enable any standard plugins.
 
         Notes:
@@ -118,6 +126,8 @@ class UserPlugin(NuitkaPluginBase):
             plugins.
         """
 
+        if not getNuitkaVersion() >= "0.6.6":
+            sys.exit("Need Nuitka v0.6.6+ for hinted compilation.")
         # start a timer
         self.timer = StopWatch()
         self.timer.start()
@@ -125,17 +135,23 @@ class UserPlugin(NuitkaPluginBase):
         self.implicit_imports = OrderedSet()  # speed up repeated lookups
         self.ignored_modules = OrderedSet()  # speed up repeated lookups
         options = Options.options
-        fin_name = self.getPluginOptions()[0]  # the JSON  file name
-        import_info = json.loads(
-            getFileContents(fin_name)
-        )  # read it and extract the two lists
+
+        # Load json file contents from --hinted-json-file= argument
+        filename = hinted_json_file
+        try:
+            # read it and extract the two lists
+            import_info = json.loads(getFileContents(filename))
+        except (ValueError, FileNotFoundError):
+            raise FileNotFoundError('Cannot load json file %s' % filename)
         self.import_calls = import_info["calls"]
         self.import_files = import_info["files"]
         self.msg_count = dict()  # to limit keep messages
         self.msg_limit = 21
 
         # suppress pytest / _pytest / unittest?
-        self.accept_test = self.getPluginOptionBool("test", False)
+        # TODO: disabled because self.getPluginOptionBool does not exist anymore
+        #self.accept_test = self.getPluginOptionBool("test", False)
+        self.accept_test = False
 
         """
         Check if we should enable any (optional) standard plugins. This code
@@ -290,7 +306,17 @@ class UserPlugin(NuitkaPluginBase):
             info("")
 
         self.ImplicitImports = None  # the 'implicit-imports' plugin object
-        return None
+
+    @classmethod
+    def addPluginCommandLineOptions(cls, group):
+        group.add_option(
+            "--hinted-json-file",
+            action="store",
+            dest="hinted_json_file",
+            default=None,
+            help="[REQUIRED] Path to the json file produced by get-hints."
+        )
+
 
     def onModuleEncounter(self, module_filename, module_name, module_kind):
         """ Help decide whether to include a module.
@@ -338,7 +364,7 @@ class UserPlugin(NuitkaPluginBase):
             return True, "module is an implicit import"  # ok
 
         # check if other plugins would accept this
-        for plugin in active_plugin_list:
+        for plugin in active_plugins:
             if plugin.plugin_name == self.plugin_name:
                 continue  # skip myself of course
             rc = plugin.onModuleEncounter(module_filename, module_name, module_kind)
@@ -378,7 +404,7 @@ class UserPlugin(NuitkaPluginBase):
 
         # next we ask if implicit imports knows our candidate
         if self.ImplicitImports is None:  # the plugin is not yet loaded
-            for plugin in active_plugin_list:
+            for plugin in active_plugins:
                 if plugin.plugin_name == "implicit-imports":
                     self.ImplicitImports = plugin
                     break

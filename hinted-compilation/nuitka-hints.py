@@ -1,4 +1,8 @@
-#     Copyright 2019, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
+#! /usr/bin/env python
+#  -*- coding: utf-8 -*-
+
+#     Copyright 2019-2020, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
+#     Copyright 2019-2020, Orsiris de Jong, mailto:<ozy@netpower.fr>
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
 #     integrates with CPython, but also works on its own.
@@ -25,18 +29,17 @@ This special version performs standalone compilations and serves as an invoker
 for the user plugin "hinted-mods.py". This plugin controls the inclusion of
 modules in the distribution folder.
 """
-import json
-import os
-import platform
 import sys
-
+import os
+import json
+import platform
 from nuitka.__main__ import main
 from nuitka.Version import getNuitkaVersion
 
-nuitka_vsn = getNuitkaVersion()
-if not nuitka_vsn >= "0.6.6":
+nuitka_version = getNuitkaVersion()
+if not nuitka_version >= "0.6.6":
     sys.exit("This needs Nuitka version 0.6.6 or higher.")
-python_vsn = sys.version.split()[0]
+python_version = sys.version.split()[0]
 this_dir = os.path.dirname(os.path.abspath(__file__))
 hinted_mods_fn = os.path.join(this_dir, "hinted-mods.py")
 if not os.path.exists(hinted_mods_fn):
@@ -47,9 +50,12 @@ my_opts = [
     "--recurse-none",  # exclude everything
 ]
 
-script = sys.argv[-1]  # name of script to be compiled
-if not os.path.exists(script):
-    sys.exit("No such file: " + script)
+try:
+    script = sys.argv[-1]  # name of script to be compiled
+    if not os.path.exists(script):
+        sys.exit("No such file: %s.\nUsage is nuitka-hints.py [optional nuitka arguments] your_script.py[w]" % script)
+except Exception as e:
+    sys.exit("Wrong number of arguments given. %s" % e)
 
 filename, extname = os.path.splitext(script)
 json_fname = "%s-%i%i-%s-%i.json" % (
@@ -69,8 +75,15 @@ if not os.path.exists(json_fname):
     sys.exit(1)
 
 # invoke user plugin to work with the JSON file
-user_plugin = "--user-plugin=%s=%s" % (hinted_mods_fn, json_fname)
-my_opts.append(user_plugin)
+if nuitka_version <= "0.6.7":
+    user_plugin = "--user-plugin=%s=%s" % (hinted_mods_fn, json_fname)
+    my_opts.append(user_plugin)
+else:
+    # Starting with nuitka 0.6.8rc5, the above syntax is not allowed anymore, and thus needs to be given apart
+    user_plugin = "--user-plugin=%s" % hinted_mods_fn
+    user_plugin_opt = "--hinted-json-file=%s" % json_fname
+    my_opts.append(user_plugin)
+    my_opts.append(user_plugin_opt)
 
 # now build a new sys.argv array
 new_sysargs = [sys.argv[0]]
@@ -78,17 +91,16 @@ for o in my_opts:
     new_sysargs.append(o)
 
 new_sysargs.extend(sys.argv[1:])
-
 sys.argv = new_sysargs
 
 # keep user happy with some type of protocol
 print(
     "NUITKA v%s on Python %s (%s) is compiling '%s' with these options:"
-    % (nuitka_vsn, python_vsn, sys.platform, sys.argv[-1])
+    % (nuitka_version, python_version, sys.platform, sys.argv[-1])
 )
 for o in sys.argv[1:-1]:
     if "hinted-mods.py" not in o:
         print(" " + o)
-print()
+print("")
 
 main()
