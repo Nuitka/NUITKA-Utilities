@@ -532,19 +532,18 @@ except Exception as e:
 # multiple logfiles may have been created - we join them into a single one
 log_files = [f for f in os.listdir(ifpath) if os.path.isfile(os.path.join(ifpath, f)) and f.endswith('.log')]
 
-with open(lname, "w")  as logfile:  # the final logfile
+# multiple logfiles may have been created - we join them into a single one
+log_files = [f for f in os.listdir(ifpath) if os.path.isfile(os.path.join(ifpath, f)) and f.endswith('.log') and
+             '%s-%s' % (os.path.basename(scriptname), hinter_pid) in f]
 
+with open(lname, "w")  as logfile:  # the final logfile
     for logname in log_files:
-        # select the right files and concatenate them
-        if not '%s-%s' % (os.path.basename(scriptname), hinter_pid) in logname:
-            continue  # this file is not for us
         full_logname = os.path.join(ifpath, logname)
         with open(full_logname) as lfile:
             for line in lfile.readlines():
                 if any(("CALL" in line, "RESULT" in line, "EXCEPTION" in line)):
                     logfile.writelines(line)
         os.remove(full_logname)
-
 
 
 myexit(lname, jname, False)  # transform logfile to JSON file
