@@ -445,7 +445,7 @@ def enableImportTracing(normalize_paths=True, show_source=False):
         try:
             _indentation += 1
 
-            logfile.write("%i;CALL;%s;%s" % (_indentation, name, fromlist))
+            logfile.write("%i;CALL;%s;%s\\n" % (_indentation, name, fromlist))
 
             for entry in traceback.extract_stack()[:-1]:
                 if entry[2] == "_ourimport":
@@ -464,13 +464,13 @@ def enableImportTracing(normalize_paths=True, show_source=False):
             try:
                 result = original_import(name, globals, locals, fromlist, level)
             except ImportError as e:
-                logfile.write("%i;EXCEPTION;%s" % (_indentation, e))
+                logfile.write("%i;EXCEPTION;%s\\n" % (_indentation, e))
                 result = None
                 raise
 
             if result is not None:
                 m = _moduleRepr(result)
-                logfile.write("%i;RESULT;%s;%s" % (_indentation, m[0], m[1]))
+                logfile.write("%i;RESULT;%s;%s\\n" % (_indentation, m[0], m[1]))
 
             builtins.__import__ = _ourimport
 
