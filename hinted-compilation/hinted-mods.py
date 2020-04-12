@@ -45,6 +45,7 @@ if nuitka_version <= "0.6.7":
     from nuitka.plugins.Plugins import active_plugin_list as active_plugins
 else:
     from nuitka.plugins.Plugins import getActivePlugins
+    from nuitka.plugins.Plugins import activatePlugins
     active_plugins = getActivePlugins()
 
 def remove_suffix(mod_dir, mod_name):
@@ -284,6 +285,9 @@ class HintedModsPlugin(NuitkaPluginBase):
         #    options.plugins_enabled.append("trio")
         #    info("--enable-plugin=trio")
 
+        # Activate the plugins above
+        activatePlugins()
+        
         recurse_count = 0
         for f in self.import_files:  # request recursion to called modules
             if self.accept_test is False and f.startswith(
