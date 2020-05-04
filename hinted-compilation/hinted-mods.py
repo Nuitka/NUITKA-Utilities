@@ -121,8 +121,8 @@ class HintedModsPlugin(NuitkaPluginBase):
             plugins.
         """
 
-        if not getNuitkaVersion() >= "0.6.6":
-            sys.exit("Need Nuitka v0.6.6+ for hinted compilation.")
+        if not getNuitkaVersion() >= "0.6.8":
+            sys.exit("Need Nuitka v0.6.8+ for hinted compilation.")
         # start a timer
         self.timer = StopWatch()
         self.timer.start()
@@ -262,7 +262,7 @@ class HintedModsPlugin(NuitkaPluginBase):
             to_enable["dill-compat"] = {}                                                
 
         # if trio:
-        #    to_enable.["trio"] = {}
+        #    to_enable["trio"] = {}
 
         recurse_count = 0
         for f in self.import_files:  # request recursion to called modules
