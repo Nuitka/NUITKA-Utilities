@@ -30,22 +30,17 @@ this plugin, whether to include it.
 import os
 import sys
 import json
-from logging import info
+
 from nuitka import Options
 from nuitka.containers.oset import OrderedSet
 from nuitka.containers.odict import OrderedDict
 from nuitka.plugins.PluginBase import NuitkaPluginBase
+from nuitka.plugins.Plugins import lateActivatePlugin, getActivePlugins
 from nuitka.utils.FileOperations import getFileContents
 from nuitka.utils.Timing import StopWatch
 from nuitka.utils.Utils import getOS
 from nuitka.Version import getNuitkaVersion
 
-nuitka_version = getNuitkaVersion()
-if nuitka_version <= "0.6.7":
-    from nuitka.plugins.Plugins import active_plugin_list as active_plugins
-else:
-    from nuitka.plugins.Plugins import getActivePlugins
-    active_plugins = getActivePlugins()
 
 def remove_suffix(mod_dir, mod_name):
     if mod_name not in mod_dir:
@@ -126,8 +121,8 @@ class HintedModsPlugin(NuitkaPluginBase):
             plugins.
         """
 
-        if not getNuitkaVersion() >= "0.6.6":
-            sys.exit("Need Nuitka v0.6.6+ for hinted compilation.")
+        if not getNuitkaVersion() >= "0.6.8":
+            sys.exit("Need Nuitka v0.6.8+ for hinted compilation.")
         # start a timer
         self.timer = StopWatch()
         self.timer.start()
@@ -159,7 +154,7 @@ class HintedModsPlugin(NuitkaPluginBase):
         """
         show_msg = False  # only show info if one ore more detected
         # indicators for found packages
-        tk = np = qt = sc = mp = pmw = torch = sklearn = False
+        tk = np = qt = scipy = mp = pmw = torch = sklearn = False
         eventlet = tflow = gevent = mpl = trio = dill = False
         msg = "'%s' is adding the following options:" % os.path.basename(
             self.plugin_name
@@ -196,7 +191,7 @@ class HintedModsPlugin(NuitkaPluginBase):
                 qt = True
                 show_msg = True
             elif m in ("scipy", "scipy.*"):
-                sc = True
+                scipy = True
                 show_msg = True
             elif m in ("multiprocessing", "multiprocessing.*") and getOS() == "Windows":
                 mp = True
@@ -227,62 +222,47 @@ class HintedModsPlugin(NuitkaPluginBase):
             #    show_msg = True
 
         if show_msg is True:
-            info(msg)
+            self.info(msg)
+
+        to_enable = OrderedDict()
 
         if np:
-            o = ["numpy="]
-            if mpl:
-                o.append("matplotlib")
-            if sc:
-                o.append("scipy")
-            if sklearn:
-                o.append("sklearn")
-            o = ",".join(o).replace("=,", "=")
-            if o.endswith("="):
-                o = o[:-1]
-            options.plugins_enabled.append(o)  # enable numpy
-            info("--enable-plugin=" + o)
+            to_enable["numpy"] = {
+                "matplotlib" : mpl,
+                "scipy" : scipy,
+                "sklearn" : sklearn
+            }
 
         if tk:
-            options.plugins_enabled.append("tk-inter")  # enable tk-inter
-            info("--enable-plugin=tk-inter")
+            to_enable["tk-inter"] = {}
 
         if qt:
             # TODO more scrutiny for the qt options!
-            options.plugins_enabled.append("qt-plugins=sensible")
-            info("--enable-plugin=qt-plugins=sensible")
+            to_enable["qt-plugins"] = {}
 
         if mp:
-            options.plugins_enabled.append("multiprocessing")
-            info("--enable-plugin=multiprocessing")
+            to_enable["multiprocessing"] = {}
 
         if pmw:
-            options.plugins_enabled.append("pmw-freezer")
-            info("--enable-plugin=pmw-freezer")
+            to_enable["pmw-freezer"] = {}            
 
         if torch:
-            options.plugins_enabled.append("torch")
-            info("--enable-plugin=torch")
+            to_enable["torch"] = {}            
 
         if tflow:
-            options.plugins_enabled.append("tensorflow")
-            info("--enable-plugin=tensorflow")
+            to_enable["tensorflow"] = {}            
 
         if gevent:
-            options.plugins_enabled.append("gevent")
-            info("--enable-plugin=gevent")
+            to_enable["gevent"] = {}                        
 
         if eventlet:
-            options.plugins_enabled.append("eventlet")
-            info("--enable-plugin=eventlet")
+            to_enable["eventlet"] = {}                                    
 
         if dill:
-            options.plugins_enabled.append("dill-compat")
-            info("--enable-plugin=dill-compat")
+            to_enable["dill-compat"] = {}                                                
 
         # if trio:
-        #    options.plugins_enabled.append("trio")
-        #    info("--enable-plugin=trio")
+        #    to_enable["trio"] = {}
 
         recurse_count = 0
         for f in self.import_files:  # request recursion to called modules
@@ -294,18 +274,23 @@ class HintedModsPlugin(NuitkaPluginBase):
             recurse_count += 1
 
         # no plugin detected, but recursing to modules?
-        if show_msg is False and recurse_count > 0:
-            info(msg)
+        if not show_msg and recurse_count > 0:
+            self.info(msg)
+
+        for plugin_name, option_values in to_enable.items():
+            self.info("Enabling Nuitka plugin '%s' as needed." % plugin_name)
+
+            # No the values could be set.
+            lateActivatePlugin(plugin_name, option_values)
 
         if len(self.import_files) > 0:
             msg = "--recurse-to=%s and %i more modules" % (
                 self.import_files[-1],
                 recurse_count - 1,
             )
-            info(msg)
-            info("")
+            self.info(msg)
 
-        self.ImplicitImports = None  # the 'implicit-imports' plugin object
+        self.implicit_imports_plugin = None  # the 'implicit-imports' plugin object
 
     @classmethod
     def addPluginCommandLineOptions(cls, group):
@@ -356,7 +341,7 @@ class HintedModsPlugin(NuitkaPluginBase):
             "_pytest",
             "unittest",
         ):
-            info(drop_msg(full_name, package))
+            self.info(drop_msg(full_name, package))
             self.ignored_modules.add(full_name)
             return False, "suppress testing components"
 
@@ -364,7 +349,7 @@ class HintedModsPlugin(NuitkaPluginBase):
             return True, "module is an implicit import"  # ok
 
         # check if other plugins would accept this
-        for plugin in active_plugins:
+        for plugin in getActivePlugins():
             if plugin.plugin_name == self.plugin_name:
                 continue  # skip myself of course
             rc = plugin.onModuleEncounter(module_filename, module_name, module_kind)
@@ -374,10 +359,10 @@ class HintedModsPlugin(NuitkaPluginBase):
                     keep_msg = "keep %s (plugin '%s')" % (full_name, plugin.plugin_name)
                     count = self.msg_count.get(plugin.plugin_name, 0)
                     if count < self.msg_limit:
-                        info(keep_msg)
+                        self.info(keep_msg)
                     self.msg_count[plugin.plugin_name] = count + 1
                     if count == self.msg_limit:
-                        info(
+                        self.info(
                             "... 'keep' msg limit exceeded for '%s'."
                             % plugin.plugin_name
                         )
@@ -385,7 +370,7 @@ class HintedModsPlugin(NuitkaPluginBase):
                 # plugin wants to drop this
                 self.ignored_modules.add(full_name)
                 ignore_msg = "drop %s (plugin '%s')" % (full_name, plugin.plugin_name)
-                info(ignore_msg)
+                self.info(ignore_msg)
                 return False, "dropped by plugin " + plugin.plugin_name
 
         if full_name == "cv2":
@@ -403,18 +388,18 @@ class HintedModsPlugin(NuitkaPluginBase):
             return True, "parent of recursed-to module"
 
         # next we ask if implicit imports knows our candidate
-        if self.ImplicitImports is None:  # the plugin is not yet loaded
-            for plugin in active_plugins:
+        if self.implicit_imports_plugin is None:  # the plugin is not yet loaded
+            for plugin in getActivePlugins():
                 if plugin.plugin_name == "implicit-imports":
-                    self.ImplicitImports = plugin
+                    self.implicit_imports_plugin = plugin
                     break
-            if self.ImplicitImports is None:
+            if self.implicit_imports_plugin is None:
                 sys.exit("could not find 'implicit-imports' plugin")
 
         # ask the 'implicit-imports' plugin whether it knows this guy
         if package is not None:
             try:
-                import_set = self.ImplicitImports.getImportsByFullname(
+                import_set = self.implicit_imports_plugin.getImportsByFullname(
                     package, package_dir
                 )
             except TypeError:
@@ -429,7 +414,7 @@ class HintedModsPlugin(NuitkaPluginBase):
                 return True, "module is an implicit import"  # ok
 
         # not known by anyone: kick it out!
-        info(drop_msg(full_name, package))  # issue ignore message
+        self.info(drop_msg(full_name, package))  # issue ignore message
         # faster decision next time
         self.ignored_modules.add(full_name)
         return False, "module is not used"
@@ -455,4 +440,4 @@ class HintedModsPlugin(NuitkaPluginBase):
         else:
             unit = "seconds"
 
-        info("Compiled '%s' in %g %s." % (sys.argv[-1], t, unit))
+        self.info("Compiled '%s' in %g %s." % (sys.argv[-1], t, unit))
