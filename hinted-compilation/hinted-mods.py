@@ -230,7 +230,8 @@ class HintedModsPlugin(NuitkaPluginBase):
             to_enable["numpy"] = {
                 "matplotlib" : mpl,
                 "scipy" : scipy,
-                "sklearn" : sklearn
+                # TODO: Numpy plugin didn't use this, work in progress or not needed?
+                # "sklearn" : sklearn
             }
 
         if tk:
