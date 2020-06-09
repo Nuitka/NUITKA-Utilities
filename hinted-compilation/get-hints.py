@@ -395,7 +395,6 @@ import sys, os
 original_import = __import__
 
 _indentation = 0
-hints_logfile = sys.stdout
 
 
 def _normalizePath(path):
@@ -441,11 +440,12 @@ def enableImportTracing(normalize_paths=True, show_source=False):
     ):
         builtins.__import__ = original_import
 
+        global logfile
         global _indentation
         try:
             _indentation += 1
 
-            print("%i;CALL;%s;%s" % (_indentation, name, fromlist), file=hints_logfile,)
+            logfile.write("%i;CALL;%s;%s\\n" % (_indentation, name, fromlist))
 
             for entry in traceback.extract_stack()[:-1]:
                 if entry[2] == "_ourimport":
@@ -464,13 +464,13 @@ def enableImportTracing(normalize_paths=True, show_source=False):
             try:
                 result = original_import(name, globals, locals, fromlist, level)
             except ImportError as e:
-                print("%i;EXCEPTION;%s" % (_indentation, e), file=hints_logfile,)
+                logfile.write("%i;EXCEPTION;%s\\n" % (_indentation, e))
                 result = None
                 raise
 
             if result is not None:
                 m = _moduleRepr(result)
-                print("%i;RESULT;%s;%s" % (_indentation, m[0], m[1]), file=hints_logfile,)
+                logfile.write("%i;RESULT;%s;%s\\n" % (_indentation, m[0], m[1]))
 
             builtins.__import__ = _ourimport
 
@@ -490,7 +490,7 @@ def enableImportTracing(normalize_paths=True, show_source=False):
 scriptname = r"&scriptname"
 extname = "&extname"
 hinter_pid = "&hinter_pid"
-lname = "%s-%s.log" % (scriptname, hinter_pid)  # each process has its logfile
+lname = "%s-%s-%s.log" % (scriptname, hinter_pid, os.getpid())  # each process has its logfile
 logfile = open(lname, "w", buffering=1)
 hints_logfile = logfile
 source_file = open(scriptname + extname, encoding='utf-8')
@@ -531,26 +531,20 @@ except Exception as e:
 
 # multiple logfiles may have been created - we join them into a single one
 log_files = [f for f in os.listdir(ifpath) if os.path.isfile(os.path.join(ifpath, f)) and f.endswith('.log')]
-logfile = open(lname, "w")  # the final logfile
 
-for logname in log_files:
-    # select the right files and concatenate them
-    if not '%s-%s.log' % (os.path.basename(scriptname), hinter_pid) == logname:
-        continue  # this file is not for us
-    full_logname = os.path.join(ifpath, logname)
-    lfile = open(full_logname)
-    while True:
-        line = lfile.readline()
-        if line == "":
-            break
-        if ";" not in line:
-            continue
-        if any(("CALL" in line, "RESULT" in line, "EXCEPTION" in line)):
-            logfile.writelines(line)
-    lfile.close()
-    os.remove(full_logname)
+# multiple logfiles may have been created - we join them into a single one
+log_files = [f for f in os.listdir(ifpath) if os.path.isfile(os.path.join(ifpath, f)) and f.endswith('.log') and
+             '%s-%s' % (os.path.basename(scriptname), hinter_pid) in f]
 
-logfile.close()
+with open(lname, "w")  as logfile:  # the final logfile
+    for logname in log_files:
+        full_logname = os.path.join(ifpath, logname)
+        with open(full_logname) as lfile:
+            for line in lfile.readlines():
+                if any(("CALL" in line, "RESULT" in line, "EXCEPTION" in line)):
+                    logfile.writelines(line)
+        os.remove(full_logname)
+
 
 myexit(lname, jname, False)  # transform logfile to JSON file
 
