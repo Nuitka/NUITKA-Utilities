@@ -530,9 +530,6 @@ except Exception as e:
     print("processing output nonetheless ...")
 
 # multiple logfiles may have been created - we join them into a single one
-log_files = [f for f in os.listdir(ifpath) if os.path.isfile(os.path.join(ifpath, f)) and f.endswith('.log')]
-
-# multiple logfiles may have been created - we join them into a single one
 log_files = [f for f in os.listdir(ifpath) if os.path.isfile(os.path.join(ifpath, f)) and f.endswith('.log') and
              '%s-%s' % (os.path.basename(scriptname), hinter_pid) in f]
 
