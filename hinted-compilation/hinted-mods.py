@@ -431,7 +431,7 @@ class HintedModsPlugin(NuitkaPluginBase):
     def onStandaloneDistributionFinished(self, dist_dir):
         """ Only used to output the compilation time."""
         self.timer.end()
-        t = int(round(self.timer.delta()))
+        t = int(round(self.timer.getDelta()))
         if t > 240:
             unit = "minutes"
             if t >= 600:
