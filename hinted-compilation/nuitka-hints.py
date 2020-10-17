@@ -36,9 +36,17 @@ import platform
 from nuitka.__main__ import main
 from nuitka.Version import getNuitkaVersion
 
-nuitka_version = getNuitkaVersion()
-if not nuitka_version >= "0.6.6":
-    sys.exit("This needs Nuitka version 0.6.6 or higher.")
+# Make it a tuple of ints, for element based comparison, ignoring rc
+# status, hoping that doesn't matter much, although it often will
+# have become incompatible already.
+nuitka_version = getNuitkaVersion().split(".")
+nuitka_version = tuple(int(v.split("rc")[0]) for v in nuitka_version)
+
+# TODO: Provide a comparison/check method in the nuitka.Version module, maybe for 0.6.10
+
+if not nuitka_version >= (0,6,9):
+    sys.exit("This needs Nuitka version 0.6.9 or higher, this is %s" % getNuitkaVersion())
+
 python_version = sys.version.split()[0]
 this_dir = os.path.dirname(os.path.abspath(__file__))
 hinted_mods_fn = os.path.join(this_dir, "hinted-mods.py")
@@ -75,15 +83,10 @@ if not os.path.exists(json_fname):
     sys.exit(1)
 
 # invoke user plugin to work with the JSON file
-if nuitka_version <= "0.6.7":
-    user_plugin = "--user-plugin=%s=%s" % (hinted_mods_fn, json_fname)
-    my_opts.append(user_plugin)
-else:
-    # Starting with nuitka 0.6.8rc5, the above syntax is not allowed anymore, and thus needs to be given apart
-    user_plugin = "--user-plugin=%s" % hinted_mods_fn
-    user_plugin_opt = "--hinted-json-file=%s" % json_fname
-    my_opts.append(user_plugin)
-    my_opts.append(user_plugin_opt)
+user_plugin = "--user-plugin=%s" % hinted_mods_fn
+user_plugin_opt = "--hinted-json-file=%s" % json_fname
+my_opts.append(user_plugin)
+my_opts.append(user_plugin_opt)
 
 # now build a new sys.argv array
 new_sysargs = [sys.argv[0]]

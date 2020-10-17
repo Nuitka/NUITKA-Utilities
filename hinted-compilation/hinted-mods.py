@@ -121,8 +121,6 @@ class HintedModsPlugin(NuitkaPluginBase):
             plugins.
         """
 
-        if not getNuitkaVersion() >= "0.6.8":
-            sys.exit("Need Nuitka v0.6.8+ for hinted compilation.")
         # start a timer
         self.timer = StopWatch()
         self.timer.start()
