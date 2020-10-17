@@ -40,7 +40,7 @@ import json
 import subprocess
 from operator import itemgetter
 from nuitka.utils.FileOperations import hasFilenameExtension
-from nuitka.utils.Utils import getSharedLibrarySuffix
+from nuitka.utils.Importing import getSharedLibrarySuffix
 
 line_number = 0  # global variable for tracing purposes
 
@@ -236,8 +236,9 @@ def call_analyzer(f, call_list, import_calls, import_files, trace_logic):
     write_mod(RESULT, normalized_file)  # this is a sure output
 
     # members of shared modules cannot be filtered out, so allow them all
+    # TODO: This should consider all possible suffixes, should it not.
     if (
-            hasFilenameExtension(res_file, getSharedLibrarySuffix())  # a shared module!
+            hasFilenameExtension(res_file, getSharedLibrarySuffix(preferred=True))  # a shared module!
             or normalized_file in accept_always
     ):
         write_mod(RESULT + ".*", normalized_file)
