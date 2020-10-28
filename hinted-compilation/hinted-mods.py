@@ -226,8 +226,8 @@ class HintedModsPlugin(NuitkaPluginBase):
 
         if np:
             to_enable["numpy"] = {
-                "matplotlib" : mpl,
-                "scipy" : scipy,
+                "include_matplotlib": mpl,
+                "include_scipy": scipy,
                 # TODO: Numpy plugin didn't use this, work in progress or not needed?
                 # "sklearn" : sklearn
             }
@@ -424,7 +424,7 @@ class HintedModsPlugin(NuitkaPluginBase):
         if full_name == "__main__":  # need to make sure that backends are used
             for f in Options.options.recurse_modules:
                 if f.startswith("matplotlib.backends"):
-                    yield f, False
+                    yield f
 
     def onStandaloneDistributionFinished(self, dist_dir):
         """ Only used to output the compilation time."""
