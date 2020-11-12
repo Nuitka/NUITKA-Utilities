@@ -17,6 +17,8 @@ The basic logic of hinted compilation is as follows:
 * As always when using Nuitka: Your script first **must work in interpreted mode**. Syntax errors will cause exceptions during the compile. And of course all required packages must have been installed.
 
 * Nuitka must have been installed - preferably the current version or even its development branch when running into issues. But be sure to use at least version 0.6.6.
+* Check out the tags to get hinted compilation scripts that will work with the corresponding Nuitka release.
+* Each tag is created before a compatibility breaking change is commited to follow Nuitka development.
 
 * Hinted compilation is for **standalone** mode only. It does not work, or respectively makes no sense otherwise.
 
