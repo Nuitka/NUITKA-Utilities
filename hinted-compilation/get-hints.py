@@ -360,7 +360,7 @@ def myexit(lname, jname, trace_logic):
 # -----------------------------------------------------------------------------
 # Main program
 # -----------------------------------------------------------------------------
-timeout = 5 * 60
+timeout = 5 * 60 # default timeout 5 minutes
 if sys.argv[1] == "--timeout":
     try:
         timeout = int(sys.argv[2])
@@ -369,6 +369,8 @@ if sys.argv[1] == "--timeout":
         del sys.argv[1:3]
     except:
         sys.exit("Invalid timeout value (specify positive integer for timeout in minutes, use 0 to turn off timeout)")
+if timeout and timeout > 0: print(f"Process run will timeout in {timeout//60} minutes")
+
 try:
     ifname = sys.argv[1]  # read name of to-be-traced script
 except:
