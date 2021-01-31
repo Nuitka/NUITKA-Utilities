@@ -86,10 +86,12 @@ def get_checklist(full_name):
     """
     if not full_name:  # guard against nonsense
         return []
-    mtab = str(full_name).split(".")  # separate components by dots
+    mtab = full_name.splitPackageName()  # separate components by dots
     checklist = [full_name]  # full name is always looked up first
     m0 = ""
     for m in mtab:  # generate *-import names
+        if not m: break
+        m = m.asString()
         m0 += "." + m if m0 else m
         checklist.append(m0 + ".*")
     return tuple(checklist)  # tuples are a bit more efficient
@@ -322,20 +324,20 @@ class HintedModsPlugin(NuitkaPluginBase):
             Example: (False, "because it is not called").
         """
         full_name = module_name
-        element = full_name.getTopLevelPackageName()
+        top_level_package_name = full_name.getTopLevelPackageName()
         package = module_name.getPackageName()
-        package_dir = remove_suffix(module_filename, element)
+        package_dir = remove_suffix(module_filename, top_level_package_name)
 
         # fall through for easy cases
-        if element == "pkg_resources":
+        if top_level_package_name == "pkg_resources":
             return None
 
         if (
-            full_name in self.ignored_modules or element in self.ignored_modules
+            full_name in self.ignored_modules or top_level_package_name in self.ignored_modules
         ):  # known to be ignored
             return False, "module is not used"
 
-        if self.accept_test is False and element in (
+        if self.accept_test is False and top_level_package_name in (
             "pytest",
             "_pytest",
             "unittest",
