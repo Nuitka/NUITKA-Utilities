@@ -86,12 +86,12 @@ def get_checklist(full_name):
     """
     if not full_name:  # guard against nonsense
         return []
-    mtab = full_name.splitPackageName()  # separate components by dots
     checklist = [full_name]  # full name is always looked up first
     m0 = ""
-    for m in mtab:  # generate *-import names
-        if not m: break
-        m = m.asString()
+    while True:     # generate *-import names
+        pkg, full_name = full_name.splitPackageName()
+        if not pkg: break
+        m = pkg.asString()
         m0 += "." + m if m0 else m
         checklist.append(m0 + ".*")
     return tuple(checklist)  # tuples are a bit more efficient
