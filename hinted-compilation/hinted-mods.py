@@ -86,10 +86,12 @@ def get_checklist(full_name):
     """
     if not full_name:  # guard against nonsense
         return []
-    mtab = full_name.split(".")  # separate components by dots
     checklist = [full_name]  # full name is always looked up first
     m0 = ""
-    for m in mtab:  # generate *-import names
+    while True:     # generate *-import names
+        pkg, full_name = full_name.splitPackageName()
+        if not pkg: break
+        m = pkg.asString()
         m0 += "." + m if m0 else m
         checklist.append(m0 + ".*")
     return tuple(checklist)  # tuples are a bit more efficient
@@ -322,20 +324,20 @@ class HintedModsPlugin(NuitkaPluginBase):
             Example: (False, "because it is not called").
         """
         full_name = module_name
-        elements = full_name.split(".")
+        top_level_package_name = full_name.getTopLevelPackageName()
         package = module_name.getPackageName()
-        package_dir = remove_suffix(module_filename, elements[0])
+        package_dir = remove_suffix(module_filename, top_level_package_name)
 
         # fall through for easy cases
-        if elements[0] == "pkg_resources":
+        if top_level_package_name == "pkg_resources":
             return None
 
         if (
-            full_name in self.ignored_modules or elements[0] in self.ignored_modules
+            full_name in self.ignored_modules or top_level_package_name in self.ignored_modules
         ):  # known to be ignored
             return False, "module is not used"
 
-        if self.accept_test is False and elements[0] in (
+        if self.accept_test is False and top_level_package_name in (
             "pytest",
             "_pytest",
             "unittest",
@@ -375,7 +377,7 @@ class HintedModsPlugin(NuitkaPluginBase):
         if full_name == "cv2":
             return True, "needed by OpenCV"
 
-        if full_name.startswith("pywin"):
+        if str(full_name.getTopLevelPackageName()).startswith("pywin"):
             return True, "needed by pywin32"
 
         checklist = get_checklist(full_name)
