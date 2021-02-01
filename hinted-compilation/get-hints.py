@@ -369,7 +369,7 @@ if sys.argv[1] == "--timeout":
         del sys.argv[1:3]
     except:
         sys.exit("Invalid timeout value (specify positive integer for timeout in minutes, use 0 to turn off timeout)")
-if timeout and timeout > 0: print(f"Process run will timeout in {timeout//60} minutes")
+if timeout and timeout > 0: print("Process run will timeout in %d minutes" % (timeout/60))
 
 try:
     ifname = sys.argv[1]  # read name of to-be-traced script
