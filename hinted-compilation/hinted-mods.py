@@ -86,12 +86,10 @@ def get_checklist(full_name):
     """
     if not full_name:  # guard against nonsense
         return []
+    mtab = full_name.split(".")  # separate components by dots
     checklist = [full_name]  # full name is always looked up first
     m0 = ""
-    while True:     # generate *-import names
-        pkg, full_name = full_name.splitPackageName()
-        if not pkg: break
-        m = pkg.asString()
+    for m in mtab:  # generate *-import names
         m0 += "." + m if m0 else m
         checklist.append(m0 + ".*")
     return tuple(checklist)  # tuples are a bit more efficient
@@ -323,21 +321,21 @@ class HintedModsPlugin(NuitkaPluginBase):
             None, (True, 'text') or (False, 'text').
             Example: (False, "because it is not called").
         """
-        full_name = module_name
-        top_level_package_name = full_name.getTopLevelPackageName()
+        full_name = str(module_name)
+        elements = full_name.split(".")
         package = module_name.getPackageName()
-        package_dir = remove_suffix(module_filename, top_level_package_name)
+        package_dir = remove_suffix(module_filename, elements[0])
 
         # fall through for easy cases
-        if top_level_package_name == "pkg_resources":
+        if elements[0] == "pkg_resources":
             return None
 
         if (
-            full_name in self.ignored_modules or top_level_package_name in self.ignored_modules
+            full_name in self.ignored_modules or elements[0] in self.ignored_modules
         ):  # known to be ignored
             return False, "module is not used"
 
-        if self.accept_test is False and top_level_package_name in (
+        if self.accept_test is False and elements[0] in (
             "pytest",
             "_pytest",
             "unittest",
@@ -377,7 +375,7 @@ class HintedModsPlugin(NuitkaPluginBase):
         if full_name == "cv2":
             return True, "needed by OpenCV"
 
-        if str(full_name.getTopLevelPackageName()).startswith("pywin"):
+        if full_name.startswith("pywin"):
             return True, "needed by pywin32"
 
         checklist = get_checklist(full_name)
