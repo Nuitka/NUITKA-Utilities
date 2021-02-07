@@ -55,7 +55,7 @@ if not os.path.exists(hinted_mods_fn):
 
 my_opts = [
     "--standalone",  # the purpose of this script
-    "--recurse-none",  # exclude everything
+    "--nofollow-imports",  # exclude everything
 ]
 
 try:
