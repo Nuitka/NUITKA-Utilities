@@ -1,5 +1,5 @@
 #     Copyright 2019-2020, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
-#     Copyright 2019-2020, Orsiris de Jong, mailto:<ozy@netpower.fr>
+#     Copyright 2019-2021, Orsiris de Jong, mailto:<ozy@netpower.fr>
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
 #     integrates with CPython, but also works on its own.
@@ -86,11 +86,12 @@ def get_checklist(full_name):
     """
     if not full_name:  # guard against nonsense
         return []
-    checklist = [full_name]  # full name is always looked up first
+    checklist = [full_name.asString(), full_name.asString() + '.*']  # full name is always looked up first
     m0 = ""
     while True:     # generate *-import names
         pkg, full_name = full_name.splitPackageName()
-        if not pkg: break
+        if not pkg:
+            break
         m = pkg.asString()
         m0 += "." + m if m0 else m
         checklist.append(m0 + ".*")
@@ -374,7 +375,7 @@ class HintedModsPlugin(NuitkaPluginBase):
                 self.info(ignore_msg)
                 return False, "dropped by plugin " + plugin.plugin_name
 
-        if full_name == "cv2":
+        if full_name.asString() == "cv2":
             return True, "needed by OpenCV"
 
         if str(full_name.getTopLevelPackageName()).startswith("pywin"):
@@ -385,7 +386,7 @@ class HintedModsPlugin(NuitkaPluginBase):
             if m in checklist:
                 return True, "module is hinted to"  # ok
 
-        if check_dependents(full_name, self.import_files) is True:
+        if check_dependents(full_name.asString(), self.import_files) is True:
             return True, "parent of recursed-to module"
 
         # next we ask if implicit imports knows our candidate
