@@ -2,7 +2,7 @@
 #  -*- coding: utf-8 -*-
 
 #     Copyright 2019-2020, Jorj McKie, mailto:<jorj.x.mckie@outlook.de>
-#     Copyright 2019-2020, Orsiris de Jong, mailto:<ozy@netpower.fr>
+#     Copyright 2019-2021, Orsiris de Jong, mailto:<ozy@netpower.fr>
 #
 #     Part of "Nuitka", an optimizing Python compiler that is compatible and
 #     integrates with CPython, but also works on its own.
@@ -44,8 +44,8 @@ nuitka_version = tuple(int(v.split("rc")[0]) for v in nuitka_version)
 
 # TODO: Provide a comparison/check method in the nuitka.Version module, maybe for 0.6.10
 
-if not nuitka_version >= (0,6,9):
-    sys.exit("This needs Nuitka version 0.6.9 or higher, this is %s" % getNuitkaVersion())
+if not nuitka_version >= (0,6,11):
+    sys.exit("This needs Nuitka version 0.6.11 or higher, this is %s" % getNuitkaVersion())
 
 python_version = sys.version.split()[0]
 this_dir = os.path.dirname(os.path.abspath(__file__))
