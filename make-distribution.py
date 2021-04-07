@@ -18,6 +18,7 @@
 """ Details see below in class definition.
 """
 import os
+import platform
 import subprocess
 from logging import info
 from nuitka import Options
@@ -153,7 +154,14 @@ class MyExit(NuitkaPluginBase):
         if self.onefile:
             info(" Now starting OneFile maker")
             info(self.sep_line1)
-            subprocess.call("python onefile-maker.py " + dist_dir)
+
+            if "linux" in platform.system():
+                subprocess.call("python onefile-maker-linux.py " + dist_dir)
+            elif "win32" in platform.system():
+                subprocess.call("python onefile-maker-windows.py " + dist_dir)
+            else:
+                raise SystemError("Platform not supported")
+
             return None
 
         if self.onedir:
