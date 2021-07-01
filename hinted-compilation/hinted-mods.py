@@ -272,7 +272,7 @@ class HintedModsPlugin(NuitkaPluginBase):
                 ("pytest", "_pytest", "unittest")
             ):
                 continue
-            options.recurse_modules.append(f)
+            options.follow_modules.append(f)
             recurse_count += 1
 
         # no plugin detected, but recursing to modules?
@@ -425,7 +425,7 @@ class HintedModsPlugin(NuitkaPluginBase):
         """Declare all matplotlib.backends modules as implicit imports."""
         full_name = module.getFullName()
         if full_name == "__main__":  # need to make sure that backends are used
-            for f in Options.options.recurse_modules:
+            for f in Options.options.follow_modules:
                 if f.startswith("matplotlib.backends"):
                     yield f
 
